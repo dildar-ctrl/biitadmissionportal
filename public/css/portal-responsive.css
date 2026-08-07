@@ -1,0 +1,336 @@
+/* =====================================================================
+   portal-responsive.css
+   Shared responsive fixes for the Northern University QEC Admin Portal.
+
+   Include this ONE file on every admin page, at the very end of <head>
+   (AFTER the page's own <style>...</style> block, so it can override it):
+
+     <link rel="stylesheet" href="assets/portal-responsive.css">
+
+   NOTES ON ZOOM / DEVICES:
+   Browser zoom (Ctrl +/-, pinch-zoom, OS display scaling) changes the
+   effective CSS viewport width, so @media queries respond to it the
+   same way they respond to a physically smaller screen. This is
+   standard CSS behavior and works identically on Windows, macOS,
+   Linux, Android and iOS — nothing OS-specific is needed. This file
+   also adds fluid (clamp-based) sizing and universal wrap/overflow
+   rules so the gaps *between* breakpoints stay safe too, not just the
+   exact breakpoint widths.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   0) Universal safety net — applies at every width, not just inside a
+   media query. Stops text/elements from ever overlapping or spilling
+   outside their container, regardless of zoom level or screen size.
+   --------------------------------------------------------------------- */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+body {
+    overflow-x: hidden;
+}
+* {
+    min-width: 0; /* the #1 cause of flex/grid children refusing to shrink and overlapping siblings */
+}
+img, svg {
+    max-width: 100%;
+    height: auto;
+}
+h1, h2, h3, h4, h5, h6, p, span, a, label, button, td, th, div {
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+input, select, textarea, button {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.filter-search-row,
+.section-heading,
+.section-heading-left,
+.summary-card,
+.panel-row,
+.form-row,
+.info-bar,
+header,
+.topbar,
+.modal-head,
+.eval-teacher-head,
+.eval-student-row {
+    flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------------------
+   1) Fluid typography
+   --------------------------------------------------------------------- */
+h1, .portal-title, header h1, .topbar h1 {
+    font-size: clamp(14px, 4vw, 28px) !important;
+    line-height: 1.25 !important;
+}
+.page-header h2, .survey-title, .questions-section h3 {
+    font-size: clamp(16px, 3.2vw, 28px) !important;
+}
+.section-heading h2 {
+    font-size: clamp(15px, 2.6vw, 20px) !important;
+}
+.summary-value {
+    font-size: clamp(16px, 2.6vw, 24px) !important;
+}
+.summary-label, .panel-title {
+    font-size: clamp(11px, 1.6vw, 14.5px) !important;
+}
+
+/* ---------------------------------------------------------------------
+   2) Global side-panel + layout shell
+   --------------------------------------------------------------------- */
+@media (max-width: 900px) {
+    :root { --side-panel-width: 0px !important; }
+    .page-frame { flex-direction: column; }
+    .side-panel { display: none !important; }
+    .content { padding: 14px 12px 40px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   3) Header / topbar
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    header, .topbar {
+        row-gap: 10px !important;
+        padding: 12px 14px !important;
+    }
+    header img, .topbar img {
+        max-width: 38px !important;
+        height: auto !important;
+    }
+    header > *, .topbar > * {
+        min-width: 0 !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   4) Session filter dropdown + section heading
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    .section-heading {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+    .session-filter-select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   5) Summary cards + two-column panels
+   --------------------------------------------------------------------- */
+@media (max-width: 1024px) and (min-width: 861px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 860px) {
+    .summary-grid { grid-template-columns: 1fr !important; }
+    .panel-grid   { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 480px) {
+    .summary-card { padding: 14px 16px !important; gap: 10px !important; }
+    .summary-icon { width: 40px !important; height: 40px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   6) Filter + search rows
+   --------------------------------------------------------------------- */
+@media (max-width: 860px) {
+    .filter-search-row { flex-direction: column !important; align-items: stretch !important; }
+    .filter-group { margin: 0 !important; width: 100% !important; justify-content: center !important; }
+    .search-wrapper-main { position: static !important; transform: none !important; width: 100% !important; margin-top: 12px !important; }
+    .search-container { width: 100% !important; }
+}
+@media (max-width: 640px) {
+    .filter-select { width: 100% !important; min-width: 0 !important; height: 44px !important; }
+    .search-input { height: 44px !important; font-size: 13px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   7) Data tables
+   --------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .table-scroll { max-height: none !important; -webkit-overflow-scrolling: touch; }
+    table { min-width: 640px !important; }
+    thead th { padding: 10px 12px !important; font-size: 10px !important; }
+    tbody td { padding: 10px 12px !important; font-size: 12px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   8) Modals
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    .modal, .options-modal {
+        width: 94vw !important;
+        max-width: 94vw !important;
+        max-height: 90vh !important;
+        border-radius: 14px !important;
+    }
+    .detail-grid { grid-template-columns: 1fr !important; }
+    .detail-item { border-right: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   9) Survey creation form
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    .form-row { flex-direction: column !important; gap: 14px !important; }
+    .half-width { max-width: 100% !important; }
+    .survey-card { width: 100% !important; padding: 22px 16px 20px !important; }
+    .button-row { flex-direction: column-reverse !important; gap: 10px !important; }
+    .save-btn, .cancel-btn { width: 100% !important; text-align: center !important; }
+}
+
+/* ---------------------------------------------------------------------
+   10b) topbar-title absolute centering fix on mobile
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    .topbar {
+        height: auto !important;
+        flex-wrap: wrap !important;
+        padding: 12px 16px !important;
+        row-gap: 8px !important;
+    }
+    .topbar-left img {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    .topbar-title {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        transform: none !important;
+        order: 3;
+        flex-basis: 100% !important;
+        text-align: center !important;
+        font-size: clamp(15px, 5vw, 22px) !important;
+        white-space: normal !important;
+    }
+    .user-menu-btn {
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   10) Very small phones / heavy zoom
+   --------------------------------------------------------------------- */
+@media (max-width: 360px) {
+    .content { padding: 10px 8px 30px !important; }
+    .summary-value { font-size: 16px !important; }
+    .row-value { font-size: 13px !important; }
+    .row-pct { font-size: 10px !important; padding: 1px 6px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   11) Added for the Admission Test Portal's own layout classes
+   (page-shell side margins, stat cards, card panels, stepper)
+   --------------------------------------------------------------------- */
+@media (max-width: 1400px) {
+    .page-shell { margin-left: 40px !important; margin-right: 40px !important; }
+}
+@media (max-width: 1200px) {
+    .page-shell { margin-left: 16px !important; margin-right: 16px !important; }
+}
+@media (max-width: 900px) {
+    .page-shell { margin-left: 0 !important; margin-right: 0 !important; }
+}
+@media (max-width: 640px) {
+    .stat-card { padding: 16px !important; }
+    .card-panel { padding: 16px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   12) Process stepper — avoid an uneven "4 then 1 alone" wrap.
+   Below 1400px, drop the arrows and let cards form a balanced grid
+   instead of a single flex row that wraps awkwardly.
+   --------------------------------------------------------------------- */
+@media (max-width: 1400px) {
+    .process-stepper {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 12px !important;
+    }
+    .step-arrow { display: none !important; }
+    .step-card { min-width: 0 !important; width: 100% !important; }
+}
+@media (max-width: 700px) {
+    .process-stepper {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   13) Topbar title — keep it from crowding the logo / user-menu on
+   mid-width desktop/laptop screens (not just phones).
+   --------------------------------------------------------------------- */
+@media (max-width: 1300px) {
+    .topbar-title {
+        font-size: clamp(14px, 2.6vw, 22px) !important;
+        max-width: 55% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   14) Mobile hardening — dashboard stepper + instructions panel +
+   general page padding, so nothing disappears or overflows on phones.
+   --------------------------------------------------------------------- */
+@media (max-width: 700px) {
+    .page-body {
+        padding: 16px !important;
+    }
+    .stepper-title {
+        font-size: 1rem !important;
+    }
+    .step-card {
+        width: 100% !important;
+        padding: 12px 14px !important;
+    }
+    .instructions-header {
+        font-size: 0.82rem !important;
+        padding: 12px !important;
+    }
+    .instructions-body {
+        padding: 14px !important;
+    }
+    .instruction-item {
+        padding: 14px !important;
+    }
+    .instruction-item h6 {
+        font-size: 0.85rem !important;
+    }
+    .instruction-item p {
+        font-size: 0.78rem !important;
+    }
+    .instruction-item .urdu {
+        font-size: 0.85rem !important;
+        line-height: 1.7 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .topbar-left img {
+        width: 34px !important;
+        height: 34px !important;
+    }
+    .step-circle {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.8rem !important;
+    }
+    .step-text strong {
+        font-size: 0.8rem !important;
+    }
+    .step-text span {
+        font-size: 0.68rem !important;
+    }
+}
