@@ -1,8 +1,9 @@
-@extends('admin.layout')
+@extends('layouts.app')
 
 @section('title', 'My Applications')
-
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/biit-responsive.css') }}">
+
 <style>
     .applications-table-wrapper {
         background-color: #fff;
@@ -17,7 +18,7 @@
     }
 
     .applications-table thead th {
-        background-color: var(--primary);
+        background-color: #0d965b;
         color: #fff;
         text-align: left;
         padding: 12px 18px;
@@ -60,7 +61,7 @@
     .status-badge.submitted { background-color: rgba(34,197,94,0.12); color: #22c55e; }
 
     .download-btn-sm {
-        background-color: var(--primary);
+       background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
         color: #fff;
         border: none;
         padding: 8px 16px;
@@ -98,8 +99,9 @@
     <table class="applications-table">
         <thead>
             <tr>
+                <th>Choice</th>
                 <th>Application No.</th>
-                <th>Post / Program Name</th>
+                <th>Program Name</th>
                 <th>Application Status</th>
                 <th>Actions</th>
             </tr>
@@ -107,24 +109,25 @@
         <tbody>
             @foreach($myApplications as $app)
             <tr>
-                <td>{{ $app->application_no }}</td>
+                <td><span class="status-badge" style="background-color: rgba(12,115,71,0.1); color: var(--primary);">{{ $app->priority }}{{ $app->priority == 1 ? 'st' : ($app->priority == 2 ? 'nd' : 'rd') }}</span></td>
+                <td>{{ $app->application->application_no ?? '' }}</td>
                 <td>
-                    <div class="program-name">{{ $app->program->title }}</div>
-                    <div class="program-session">{{ $app->program->session }}</div>
+                    <div class="program-name">{{ $app->program->name }}</div>
+                    <div class="program-session">{{ $app->program->session->name ?? '' }}</div>
                 </td>
-                <td><span class="status-badge {{ $app->status }}">{{ ucfirst($app->status) }}</span></td>
+                <td><span class="status-badge {{ $app->admin_status }}">{{ ucfirst($app->admin_status) }}</span></td>
                 <td>
                     <a href="{{ route('apply.download', $app->id) }}" target="_blank" class="download-btn-sm">
                         <i class="fas fa-download"></i> Download
                     </a>
 
-                    @if($app->rollSlip)
+                    @if($latestApplication->rollSlip ?? null)
                     <a href="{{ route('candidate.rollslip.show', $app->id) }}" target="_blank" class="download-btn-sm">
                         <i class="fas fa-id-card"></i> Roll Slip
                     </a>
                     @endif
 
-                    @if($app->has_published_result)
+                    @if($latestApplication->has_published_result ?? false)
                     <a href="{{ route('candidate.result.show', $app->id) }}" class="download-btn-sm">
                         <i class="fas fa-poll"></i> View Result
                     </a>

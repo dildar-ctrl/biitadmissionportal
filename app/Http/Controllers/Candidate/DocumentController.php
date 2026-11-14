@@ -32,40 +32,62 @@ class DocumentController extends Controller
 
         $documentTypes = DocumentType::orderBy('type')->get();
 
-        // 'Certificate' and 'DMC' are generic, reusable document types — every
-        // education entry (Matric, Intermediate, Bachelor's, Master's, or any
-        // degree added later via "Add More") gets its own Certificate/DMC pair,
-        // told apart by the new documents.education_id column rather than by
-        // a dedicated documenttype row per degree.
-        $certTypeId = DocumentType::firstOrCreate(['type' => 'Certificate'])->id;
-        $dmcTypeId = DocumentType::firstOrCreate(['type' => 'DMC'])->id;
-
         $allDocuments = Document::where('candidate_id', $candidate->id)->get();
 
-        // Fixed, non-education documents (photo, CNIC, domicile, etc.) — keyed
-        // by documenttype_id exactly as before.
+        // Fixed, non-education documents (photo, CNIC, CNIC father/guardian) —
+        // keyed by documenttype_id exactly as before.
         $documents = $allDocuments->whereNull('education_id')->keyBy('documenttype_id');
 
         // Per-education certificate/DMC status, keyed by education_id, so the
         // view can show "Already Uploaded" against the right degree block.
+        // Uses the SAME fixed per-degree documenttype_id as store() below
+        // (Matric -> 2/3, Intermediate -> 4/5) so the badge always lines up
+        // with whatever id the file was actually saved under.
         $educationDocuments = [];
         foreach ($educations as $edu) {
+            [$certTypeId, $dmcTypeId] = $this->resolveDocTypeIds($edu);
+
             $educationDocuments[$edu->id] = [
                 'certificate' => $allDocuments->first(fn ($d) => $d->education_id == $edu->id && $d->documenttype_id == $certTypeId),
                 'dmc' => $allDocuments->first(fn ($d) => $d->education_id == $edu->id && $d->documenttype_id == $dmcTypeId),
             ];
         }
+        // Already uploaded files, keyed by form field name, so the view can show them in their cards
+        $fieldByTypeId = [
+            7 => 'photo',
+            1 => 'cnicfront',
+            8 => 'cnicback',
+            9 => 'bform',
+            6 => 'fathercnicfront',
+            10 => 'fathercnicback',
+        ];
 
+        $existingFiles = [];
+        foreach ($fieldByTypeId as $typeId => $field) {
+            if (isset($documents[$typeId])) {
+                $existingFiles[$field] = $this->existingFileInfo($documents[$typeId]);
+            }
+        }
+
+        foreach ($educations as $edu) {
+            foreach (['certificate', 'dmc'] as $kind) {
+                $doc = $educationDocuments[$edu->id][$kind] ?? null;
+                if ($doc) {
+                    $existingFiles["{$kind}_{$edu->id}"] = $this->existingFileInfo($doc);
+                }
+            }
+        }
         return view('candidate.document', [
             'candidate' => $candidate,
             'documents' => $documents,
             'educationDocuments' => $educationDocuments,
             'documentTypes' => $documentTypes,
             'educations' => $educations,
+            'existingFiles' => $existingFiles,
         ]);
     }
 
-    public function store(Request $request)
+       public function store(Request $request)
     {
         $candidateLoginId = Auth::guard('web')->id();
         $candidate = Candidate::where('candidate_login_id', $candidateLoginId)->first();
@@ -76,31 +98,54 @@ class DocumentController extends Controller
 
         $educations = Education::where('candidate_id', $candidate->id)->orderBy('id')->get();
 
+        // The candidate either uploads CNIC (front + back) or, if they have
+        // no CNIC, a single B-Form image.
+        $noCnic = $request->boolean('nocnic');
+
         // -----------------------------------------------------------
         // Build validation rules.
         // Photo stays image-only, capped at 5MB.
-        // Everything else can be PNG/JPG/JPEG/PDF — CNIC capped at 5MB,
-        // and certificates/DMCs/additional docs capped at 10MB since
-        // scanned PDFs tend to be larger than plain images.
+        // Everything else can be PNG/JPG/JPEG/PDF — CNIC/B-Form capped at
+        // 5MB, and certificates/DMCs capped at 10MB since scanned PDFs
+        // tend to be larger than plain images.
+        // A file is only required when nothing is stored yet for that
+        // document, so the candidate never has to re-upload everything.
         // -----------------------------------------------------------
+        $existingDocs = Document::where('candidate_id', $candidate->id)->get();
+        $requiredIfMissing = function (int $typeId, $educationId = null) use ($existingDocs) {
+            $exists = $existingDocs->contains(
+                fn ($d) => $d->documenttype_id == $typeId && $d->education_id == $educationId
+            );
+            return $exists ? 'nullable' : 'required';
+        };
+
+        $fileRules = fn (int $typeId) => [$requiredIfMissing($typeId), 'file', 'mimes:png,jpg,jpeg,pdf', 'max:5120']; // 5MB
+
         $rules = [
-            // Photo (documenttype_id = 2)
+            // Photo (documenttype_id = 7)
             'photo' => [
-                'required',
+                $requiredIfMissing(7),
                 'image',
                 'mimes:png,jpg,jpeg',
                 'max:5120', // 5MB
                 'dimensions:min_width=150,min_height=150,ratio=1/1',
             ],
 
-            // CNIC (documenttype_id = 1)
-            'cnic' => [
-                'required',
-                'file',
-                'mimes:png,jpg,jpeg,pdf',
-                'max:5120', // 5MB
-            ],
+            // CNIC Father/Guardian Front (documenttype_id = 6)
+            'fathercnicfront' => $fileRules(6),
+
+            // CNIC Father/Guardian Back (documenttype_id = 10)
+            'fathercnicback' => $fileRules(10),
         ];
+
+        if ($noCnic) {
+            // B-Form (documenttype_id = 9)
+            $rules['bform'] = $fileRules(9);
+        } else {
+            // CNIC Front (documenttype_id = 1) and CNIC Back (documenttype_id = 8)
+            $rules['cnicfront'] = $fileRules(1);
+            $rules['cnicback'] = $fileRules(8);
+        }
 
         $messages = [
             'photo.required' => 'Passport size photo is required.',
@@ -109,53 +154,56 @@ class DocumentController extends Controller
             'photo.max' => 'Photo size must not exceed 5MB.',
             'photo.dimensions' => 'Photo must be square (1:1 ratio) and at least 150x150 pixels.',
 
-            'cnic.required' => 'CNIC / B-Form is required.',
-            'cnic.file' => 'CNIC / B-Form must be a valid file.',
-            'cnic.mimes' => 'CNIC / B-Form must be in PNG, JPG, JPEG, or PDF format.',
-            'cnic.max' => 'CNIC / B-Form size must not exceed 5MB.',
+            'cnicfront.required' => 'CNIC front side is required.',
+            'cnicfront.file' => 'CNIC front side must be a valid file.',
+            'cnicfront.mimes' => 'CNIC front side must be in PNG, JPG, JPEG, or PDF format.',
+            'cnicfront.max' => 'CNIC front side size must not exceed 5MB.',
 
-            'domicile.mimes' => 'Domicile Certificate must be in PNG, JPG, JPEG, or PDF format.',
-            'domicile.max' => 'Domicile Certificate size must not exceed 10MB.',
+            'cnicback.required' => 'CNIC back side is required.',
+            'cnicback.file' => 'CNIC back side must be a valid file.',
+            'cnicback.mimes' => 'CNIC back side must be in PNG, JPG, JPEG, or PDF format.',
+            'cnicback.max' => 'CNIC back side size must not exceed 5MB.',
 
-            'character.mimes' => 'Character Certificate must be in PNG, JPG, JPEG, or PDF format.',
-            'character.max' => 'Character Certificate size must not exceed 10MB.',
+            'bform.required' => 'B-Form is required if you do not have a CNIC.',
+            'bform.file' => 'B-Form must be a valid file.',
+            'bform.mimes' => 'B-Form must be in PNG, JPG, JPEG, or PDF format.',
+            'bform.max' => 'B-Form size must not exceed 5MB.',
 
-            'migration.mimes' => 'Migration Certificate must be in PNG, JPG, JPEG, or PDF format.',
-            'migration.max' => 'Migration Certificate size must not exceed 10MB.',
+            'fathercnicfront.required' => 'Father/Guardian CNIC front side is required.',
+            'fathercnicfront.file' => 'Father/Guardian CNIC front side must be a valid file.',
+            'fathercnicfront.mimes' => 'Father/Guardian CNIC front side must be in PNG, JPG, JPEG, or PDF format.',
+            'fathercnicfront.max' => 'Father/Guardian CNIC front side size must not exceed 5MB.',
 
-            'equivalence.mimes' => 'Equivalence Certificate must be in PNG, JPG, JPEG, or PDF format.',
-            'equivalence.max' => 'Equivalence Certificate size must not exceed 10MB.',
-
-            'disability.mimes' => 'Disability Certificate must be in PNG, JPG, JPEG, or PDF format.',
-            'disability.max' => 'Disability Certificate size must not exceed 10MB.',
+            'fathercnicback.required' => 'Father/Guardian CNIC back side is required.',
+            'fathercnicback.file' => 'Father/Guardian CNIC back side must be a valid file.',
+            'fathercnicback.mimes' => 'Father/Guardian CNIC back side must be in PNG, JPG, JPEG, or PDF format.',
+            'fathercnicback.max' => 'Father/Guardian CNIC back side size must not exceed 5MB.',
         ];
 
         // ---------------------------------------------------------------
-        // One Certificate (required) + DMC (optional) upload per education
-        // entry the candidate has on file — however many they added via
-        // "Add More" on the Profile page. Field names are keyed by the
-        // education row's own id: certificate_{id} / dmc_{id}.
+        // One Result (required unless already uploaded) + one optional DMC
+        // upload per education entry the candidate has on file. Field names
+        // are keyed by the education row's own id: certificate_{id} / dmc_{id}.
+        // (Field name stays "certificate_" for backward compatibility —
+        // only the label shown to the candidate was renamed to "Result"
+        // in the view.)
         // ---------------------------------------------------------------
         foreach ($educations as $edu) {
-            $rules["certificate_{$edu->id}"] = ['required', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
+            [$certTypeId] = $this->resolveDocTypeIds($edu);
+
+            $rules["certificate_{$edu->id}"] = [$requiredIfMissing($certTypeId, $edu->id), 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
             $rules["dmc_{$edu->id}"] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
 
-            $messages["certificate_{$edu->id}.required"] = $edu->degree . ' certificate is required.';
-            $messages["certificate_{$edu->id}.file"] = $edu->degree . ' certificate must be a valid file.';
-            $messages["certificate_{$edu->id}.mimes"] = $edu->degree . ' certificate must be in PNG, JPG, JPEG, or PDF format.';
-            $messages["certificate_{$edu->id}.max"] = $edu->degree . ' certificate size must not exceed 10MB.';
+            $messages["certificate_{$edu->id}.required"] = $edu->degree . ' result is required.';
+            $messages["certificate_{$edu->id}.file"] = $edu->degree . ' result must be a valid file.';
+            $messages["certificate_{$edu->id}.mimes"] = $edu->degree . ' result must be in PNG, JPG, JPEG, or PDF format.';
+            $messages["certificate_{$edu->id}.max"] = $edu->degree . ' result size must not exceed 10MB.';
 
+            $messages["dmc_{$edu->id}.required"] = $edu->degree . ' DMC is required.';
             $messages["dmc_{$edu->id}.file"] = $edu->degree . ' DMC must be a valid file.';
             $messages["dmc_{$edu->id}.mimes"] = $edu->degree . ' DMC must be in PNG, JPG, JPEG, or PDF format.';
             $messages["dmc_{$edu->id}.max"] = $edu->degree . ' DMC size must not exceed 10MB.';
         }
-
-        // Additional documents (optional)
-        $rules['domicile'] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
-        $rules['character'] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
-        $rules['migration'] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
-        $rules['equivalence'] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
-        $rules['disability'] = ['nullable', 'file', 'mimes:png,jpg,jpeg,pdf', 'max:10240'];
 
         $validator = Validator::make($request->all(), $rules, $messages);
 
@@ -182,50 +230,124 @@ class DocumentController extends Controller
 
         // Save all documents
         try {
-            // Delete old documents
-            $oldPaths = Document::where('candidate_id', $candidate->id)->pluck('document_path');
-            foreach ($oldPaths as $oldPath) {
-                Storage::disk('public')->delete($oldPath);
-            }
-            Document::where('candidate_id', $candidate->id)->delete();
+            // If the candidate switched between CNIC and B-Form, remove the
+            // documents of the mode that is no longer used.
+            $this->deleteDocuments($candidate->id, $noCnic ? [1, 8] : [9]);
 
             // Mapping: field_name => documenttype_id (fixed, non-education documents)
             $documentMap = [
-                'photo' => 2,
-                'cnic' => 1,
-                'domicile' => 7,
-                'character' => 8,
-                'migration' => 9,
-                'equivalence' => 10,
-                'disability' => 11,
+                'photo' => 7,              // Passport Size Photo
+                'fathercnicfront' => 6,    // CNIC Father/Guardian Front
+                'fathercnicback' => 10,    // CNIC Father/Guardian Back
             ];
 
+            if ($noCnic) {
+                $documentMap['bform'] = 9;      // B-Form
+            } else {
+                $documentMap['cnicfront'] = 1;  // CNIC Front
+                $documentMap['cnicback'] = 8;   // CNIC Back
+            }
+
+            // Only files uploaded in this request replace the stored ones;
+            // everything else stays untouched.
             foreach ($documentMap as $field => $docTypeId) {
                 if ($request->hasFile($field)) {
-                    $this->saveDocument($candidate->id, $docTypeId, $request->file($field));
+                    $this->replaceDocument($candidate->id, $docTypeId, $request->file($field));
                 }
             }
 
-            // Save one Certificate + optional DMC per education entry
-            $certTypeId = DocumentType::firstOrCreate(['type' => 'Certificate'])->id;
-            $dmcTypeId = DocumentType::firstOrCreate(['type' => 'DMC'])->id;
-
+            // ---------------------------------------------------------------
+            // Save one Result + one DMC per education entry, using a FIXED
+            // documenttype_id per degree (Matric -> 2/3, Intermediate ->
+            // 4/5).
+            // ---------------------------------------------------------------
             foreach ($educations as $edu) {
+                [$certTypeId, $dmcTypeId] = $this->resolveDocTypeIds($edu);
+
                 if ($request->hasFile("certificate_{$edu->id}")) {
-                    $this->saveDocument($candidate->id, $certTypeId, $request->file("certificate_{$edu->id}"), $edu->id);
+                    $this->replaceDocument($candidate->id, $certTypeId, $request->file("certificate_{$edu->id}"), $edu->id);
                 }
                 if ($request->hasFile("dmc_{$edu->id}")) {
-                    $this->saveDocument($candidate->id, $dmcTypeId, $request->file("dmc_{$edu->id}"), $edu->id);
+                    $this->replaceDocument($candidate->id, $dmcTypeId, $request->file("dmc_{$edu->id}"), $edu->id);
                 }
             }
 
-            return redirect()->route('profile.view')->with('success', 'Documents uploaded successfully!');
+            return redirect()->route('profile.review')->with('success', 'Documents uploaded successfully! Please review your application.');
 
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to upload documents: ' . $e->getMessage());
         }
     }
 
+    /**
+     * Returns [certificateTypeId, dmcTypeId] for a given education row.
+     * Matric -> [2, 3] (Matric Character Certificate, Matric Result)
+     * Intermediate -> [4, 5] (Intermediate Character Certificate, Intermediate Result)
+     *
+     * No generic "Certificate"(9)/"DMC"(10) fallback is used anymore —
+     * only these two fixed, dedicated documenttype ids are ever written
+     * to the `documents` table for education documents.
+     */
+    private function resolveDocTypeIds(Education $edu): array
+    {
+        $degree = strtolower($edu->degree ?? '');
+
+        if (str_contains($degree, 'matric') || str_contains($degree, 'o level')) {
+            return [2, 3];
+        }
+
+        // Everything else (Intermediate, FSc, A Level, HSSC, and any
+        // additional degree added via "Add More") maps to the
+        // Intermediate documenttype ids.
+        return [4, 5];
+    }
+    /**
+     * Builds the URL and extension the view needs to display a stored file.
+     */
+    private function existingFileInfo(Document $doc): array
+    {
+        return [
+            'url' => route('document.file', $doc->id),
+            'ext' => strtolower(pathinfo($doc->document_path, PATHINFO_EXTENSION)),
+        ];
+    }
+
+    /**
+     * Deletes every stored document (file and row) of the given types.
+     */
+    private function deleteDocuments(int $candidateId, array $typeIds): void
+    {
+        $docs = Document::where('candidate_id', $candidateId)
+            ->whereIn('documenttype_id', $typeIds)
+            ->get();
+
+        foreach ($docs as $doc) {
+            Storage::disk('public')->delete($doc->document_path);
+            $doc->delete();
+        }
+    }
+
+    /**
+     * Removes the previously stored file of this document (if any) and saves the new one.
+     */
+    private function replaceDocument($candidateId, $documentTypeId, $file, $educationId = null)
+    {
+        $oldDocs = Document::where('candidate_id', $candidateId)
+            ->where('documenttype_id', $documentTypeId)
+            ->when(
+                $educationId === null,
+                fn ($q) => $q->whereNull('education_id'),
+                fn ($q) => $q->where('education_id', $educationId)
+            )
+            ->get();
+
+        foreach ($oldDocs as $old) {
+            Storage::disk('public')->delete($old->document_path);
+            $old->delete();
+        }
+
+        return $this->saveDocument($candidateId, $documentTypeId, $file, $educationId);
+    }
     private function saveDocument($candidateId, $documentTypeId, $file, $educationId = null)
     {
         $extension = $file->getClientOriginalExtension();

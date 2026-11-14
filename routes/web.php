@@ -9,15 +9,8 @@ use App\Http\Controllers\Candidate\ApplyController;
 use App\Http\Controllers\Candidate\CandidateDashboardController;
 use App\Http\Controllers\Admin\AdminApplicationController;
 use App\Http\Controllers\Admin\AdminCandidateController;
-use App\Http\Controllers\Admin\QuestionController;
-use App\Http\Controllers\Admin\ProgramPatternController;
-use App\Http\Controllers\Admin\TestGenerateController;
-use App\Http\Controllers\Admin\AdminRollSlipController;
-use App\Http\Controllers\Admin\TestVersionController;
-use App\Http\Controllers\TestAttemptController;
-use App\Http\Controllers\TestLoginController;
-use App\Http\Controllers\Admin\AdminResultController;
-use App\Http\Controllers\Candidate\CandidateResultController;
+use App\Http\Controllers\UndertakingsController;
+use App\Http\Controllers\ForgotPasswordController;
 
 
 /*
@@ -27,9 +20,10 @@ use App\Http\Controllers\Candidate\CandidateResultController;
 */
 
 // ----- Root: always open login page first -----
+// ----- Root: public landing page -----
 Route::get('/', function () {
-    return redirect()->route('login');
-});
+    return view('landing');
+})->name('landing');
 
 // ----- Login (guest only) -----
 Route::middleware('guest')->group(function () {
@@ -39,7 +33,14 @@ Route::middleware('guest')->group(function () {
     // ----- Signup (candidates only) -----
     Route::get('/signup', [AuthController::class, 'showSignupForm'])->name('signup');
     Route::post('/signup', [AuthController::class, 'signup'])->name('signup.submit');
-});
+   Route::get('/forgot-password', [ForgotPasswordController::class, 'showForm'])->name('password.forgot');
+Route::post('/forgot-password/verify', [ForgotPasswordController::class, 'verifyIdentity'])
+    ->middleware('throttle:6,1')->name('password.verify');
+Route::post('/forgot-password/otp', [ForgotPasswordController::class, 'verifyOtp'])
+    ->middleware('throttle:10,1')->name('password.otp.verify');
+Route::post('/forgot-password/otp/resend', [ForgotPasswordController::class, 'resendOtp'])
+    ->middleware('throttle:6,1')->name('password.otp.resend');
+Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset'])->name('password.reset');});
 
 // ----- Logout (any logged in user, admin or candidate) -----
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -47,20 +48,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------
-| Test Login + Test Taking
-|--------------------------------------------------------------------------
-| Intentionally NOT wrapped in auth:web or auth:admin — this is a
-| separate, one-purpose session (Roll No + Test Password), checked
-| manually inside TestLoginController / TestAttemptController.
-*/
-
-Route::get('/test-login', [TestLoginController::class, 'showLoginForm'])->name('test.login');
-Route::post('/test-login', [TestLoginController::class, 'login'])->name('test.login.submit');
-Route::post('/test-logout', [TestLoginController::class, 'logout'])->name('test.logout');
-
-Route::get('/test/attempt', [TestAttemptController::class, 'show'])->name('test.attempt');
-Route::post('/test/attempt/submit', [TestAttemptController::class, 'submit'])->name('test.submit');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -88,10 +75,6 @@ Route::middleware('auth:web')->group(function () {
     Route::get('/apply/my-applications', [ApplyController::class, 'myApplications'])->name('apply.status');
     Route::get('/apply/download/{id}', [ApplyController::class, 'download'])->name('apply.download');
 
-    // Roll Slip + Result (candidate's own, ownership-checked inside the controller)
-    Route::get('/roll-slip/{application}', [CandidateResultController::class, 'rollSlip'])->name('candidate.rollslip.show');
-    Route::get('/result/{application}', [CandidateResultController::class, 'result'])->name('candidate.result.show');
-
 });
 
 
@@ -111,49 +94,29 @@ Route::middleware('auth:admin')->prefix('admin')->group(function () {
     // Applications management (view, approve, reject)
     Route::get('/applications', [AdminApplicationController::class, 'index'])->name('admin.applications.index');
     Route::post('/applications/{application}/approve', [AdminApplicationController::class, 'approve'])->name('admin.applications.approve');
+    Route::post('/applications/offline-create', [AdminApplicationController::class, 'storeOffline'])->name('admin.applications.offline.store');
     Route::post('/applications/{application}/reject', [AdminApplicationController::class, 'reject'])->name('admin.applications.reject');
-
-    // Roll Slip generation
-    Route::post('/applications/{application}/generate-roll-slip', [AdminRollSlipController::class, 'generate'])->name('admin.rollslip.generate');
-    Route::get('/applications/{application}/roll-slip', [AdminRollSlipController::class, 'show'])->name('admin.rollslip.show');
-    Route::post('/applications/generate-all-roll-slips', [AdminRollSlipController::class, 'generateAll'])->name('admin.rollslip.generateAll');
-
-    // Results
-    Route::get('/results', [AdminResultController::class, 'index'])->name('admin.results.index');
-    Route::post('/results/{id}/publish', [AdminResultController::class, 'publish'])->name('admin.results.publish');
-    Route::post('/results/publish-all', [AdminResultController::class, 'publishAll'])->name('admin.results.publishAll');
-
-    // Questions
-    Route::get('/question', [QuestionController::class, 'index'])->name('admin.question.index');
-    Route::get('/question/create', [QuestionController::class, 'create'])->name('admin.question.create');
-    Route::get('/question/categories/{degreeLevelId}', [QuestionController::class, 'getCategories'])->name('admin.question.categories');
-    Route::post('/question/store', [QuestionController::class, 'store'])->name('admin.question.store');
-    Route::get('/question/{id}/edit', [QuestionController::class, 'edit'])->name('admin.question.edit');
-    Route::put('/question/{id}', [QuestionController::class, 'update'])->name('admin.question.update');
-    Route::delete('/question/{id}', [QuestionController::class, 'destroy'])->name('admin.question.destroy');
-
-    // Program Pattern
-    Route::get('/pattern', [ProgramPatternController::class, 'index'])->name('admin.pattern.index');
-    Route::get('/pattern/create', [ProgramPatternController::class, 'create'])->name('admin.pattern.create');
-    Route::get('/pattern/programs/{degreeLevelId}', [ProgramPatternController::class, 'getPrograms'])->name('admin.pattern.programs');
-    Route::get('/pattern/categories/{degreeLevelId}', [ProgramPatternController::class, 'getCategoriesWithCounts'])->name('admin.pattern.categories');
-    Route::post('/pattern/store', [ProgramPatternController::class, 'store'])->name('admin.pattern.store');
-
-    // Tests — literal routes MUST come before /test/{id}
-    Route::get('/test', [TestGenerateController::class, 'index'])->name('admin.test.index');
-    Route::get('/test/create', [TestGenerateController::class, 'create'])->name('admin.test.create');
-    Route::get('/test/programs/{degreeLevelId}', [TestGenerateController::class, 'getPrograms'])->name('admin.test.programs');
-    Route::get('/test/pattern-preview/{programId}', [TestGenerateController::class, 'getPatternPreview'])->name('admin.test.pattern-preview');
-    Route::post('/test/store', [TestGenerateController::class, 'store'])->name('admin.test.store');
-    Route::post('/test/{id}/publish', [TestGenerateController::class, 'publish'])->name('admin.test.publish');
-    Route::get('/test/{id}/edit', [TestGenerateController::class, 'edit'])->name('admin.test.edit');
-    Route::put('/test/{id}', [TestGenerateController::class, 'update'])->name('admin.test.update');
-    Route::delete('/test/{id}', [TestGenerateController::class, 'destroy'])->name('admin.test.destroy');
-    Route::get('/test/{id}', [TestGenerateController::class, 'show'])->name('admin.test.show'); // must stay LAST
-
-    // Test Versions (per-test, for latecomers)
-    Route::post('/test/{testId}/versions', [TestVersionController::class, 'store'])->name('admin.test.versions.store');
-    Route::delete('/test/{testId}/versions/{versionId}', [TestVersionController::class, 'destroy'])->name('admin.test.versions.destroy');
-
+    Route::get('/applications/{application}/print', [AdminApplicationController::class, 'print'])->name('admin.applications.print');
 });
  Route::get('/document/{document}/file', [DocumentController::class, 'showFile'])->name('document.file');
+
+ Route::middleware(['auth'])->group(function () {
+    // Step 5: Profile Review - selected programs (session) + candidate profile, before undertakings
+    Route::get('/profile-review', [UndertakingsController::class, 'showProfileReview'])
+        ->name('profile.review');
+ 
+    // Step 6: Show Undertakings (step-by-step)
+    Route::get('/undertakings', [UndertakingsController::class, 'showUndertakings'])
+        ->name('undertakings.show');
+ 
+    // Accept individual undertaking (AJAX) - stored in session until final submit
+    Route::post('/undertakings/accept', [UndertakingsController::class, 'acceptUndertaking'])
+        ->name('undertakings.accept');
+ 
+    // Step 7: Final Submit - THIS is where application_no + Application row + ApplicationChoice rows get created
+    Route::post('/undertakings/submit', [UndertakingsController::class, 'submitApplication'])
+        ->name('undertakings.submit');
+});
+ Route::get('/admissions-closed', function () {
+    return view('candidate.admissions-closed');
+})->name('admissions.closed');

@@ -1,0 +1,538 @@
+/* =====================================================================
+   responsive.css  —  BIIT Admission Portal (Laravel + Bootstrap 5.3)
+   ---------------------------------------------------------------------
+   HOW TO ATTACH
+   Put this file in  public/css/responsive.css  and add ONE line as the
+   LAST thing inside <head> (after @stack('styles')) of each of these:
+
+       <link rel="stylesheet" href="{{ asset('css/responsive.css') }}">
+
+   Files:  resources/views/layouts/app.blade.php     (candidate portal)
+           resources/views/layouts/admin.blade.php   (admin panel)
+           resources/views/layouts/auth.blade.php    (login/signup/forgot)
+           resources/views/landing.blade.php         (public landing page)
+           resources/views/candidate/application-print.blade.php (optional)
+   Every page that @extends one of those layouts is fixed automatically.
+
+   HOW IT WORKS (zoom + every device)
+   Browser zoom, pinch zoom, OS display scaling, split-screen and
+   landscape all just change the CSS-pixel width of the viewport, so the
+   same breakpoints handle them. 400% zoom on a 1280px screen == 320px.
+   Below the breakpoints we use fluid units (%, rem, clamp, min/max) so
+   nothing depends on an exact device width.
+
+   NOTE: user-scalable=no is NOT used anywhere: pinch-zoom stays enabled.
+
+   BREAKPOINTS
+     <= 1399  small laptop      <= 1199  tablet landscape / zoom 125-150%
+     <= 991   tablet portrait   -> sidebar becomes a top navigation bar
+     <= 767   large phone       <= 575   phone        <= 380  small phone
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   0. GLOBAL SAFETY NET  (all sizes)
+   --------------------------------------------------------------------- */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: hidden;              /* last-resort: never a sideways page scroll */
+    scroll-padding-top: 72px;
+}
+body {
+    max-width: 100%;
+    overflow-x: clip;                /* clip (not hidden) keeps position:sticky working */
+    overflow-wrap: break-word;
+}
+img, video, canvas, iframe, embed, object { max-width: 100%; }
+img, video { height: auto; }
+svg { max-width: 100%; }
+table { max-width: 100%; }
+pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
+h1, h2, h3, h4, h5, h6, p, li, td, th, label, a, span, .value, .modal-title {
+    overflow-wrap: break-word;
+}
+td, th, .value, .review-field, .program-name-text { overflow-wrap: anywhere; }
+
+/* flex / grid children may shrink instead of pushing the page wider */
+.dashboard-container, .main-area, .main-content,
+.main-content > *, .row > *, .card-panel, .stat-card,
+.review-row > *, .review-grid > *, .program-row > *,
+.topbar > *, .section-heading > * { min-width: 0; }
+
+/* notch / rounded-corner phones + address-bar-safe heights */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+@supports (height: 100dvh) {
+    .dashboard-container { min-height: 100dvh; }
+}
+
+/* keyboard users + reduced motion */
+:focus-visible { outline: 2px solid var(--primary, #0c7347); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   1. TABLES  — always scroll inside their own box, never cut off
+   --------------------------------------------------------------------- */
+.applications-table-wrapper,
+.candidates-table-wrapper,
+.table-responsive,
+.table-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+.applications-table, .candidates-table, .simple-table {
+    min-width: 640px;                /* keeps columns readable; wrapper scrolls */
+}
+.applications-table { min-width: 760px; }
+.candidates-table   { min-width: 720px; }
+.status-badge, .profile-status-tag { white-space: nowrap; }
+
+/* dashboard "recent applications" style tables sit directly in cards */
+.card-panel { overflow-x: auto; }
+.card-panel .simple-table { min-width: 520px; }
+
+/* ---------------------------------------------------------------------
+   2. FORMS  — full-width fields, touch-size targets
+   --------------------------------------------------------------------- */
+input, select, textarea, button { max-width: 100%; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select, textarea { min-width: 0; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; }
+
+@media (pointer: coarse) {
+    .nav-item, .btn, button, select,
+    input:not([type="checkbox"]):not([type="radio"]) { min-height: 44px; }
+    .action-btn { min-height: 38px; }
+    .bell-btn, .sidebar-close { min-height: 0; }   /* round icon buttons keep their own size */
+}
+
+/* ---------------------------------------------------------------------
+   3. ULTRA-WIDE / 4K  — keep content readable
+   --------------------------------------------------------------------- */
+@media (min-width: 1700px) {
+    .main-content { max-width: 1760px; width: 100%; margin-left: auto; margin-right: auto; }
+}
+@media (min-width: 2400px) {
+    html { font-size: 112.5%; }      /* 18px base on QHD / 4K so UI does not look tiny */
+}
+@media (min-width: 3200px) {
+    html { font-size: 125%; }
+}
+
+/* ---------------------------------------------------------------------
+   4. DESKTOP WITH SHORT HEIGHT (landscape phone, 150-200% zoom)
+      Sidebar is fixed & 100vh, so it must be able to scroll itself.
+   --------------------------------------------------------------------- */
+@media (min-width: 992px) {
+    .sidebar { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+    .nav-menu { overflow-y: auto !important; flex: 1 0 auto; }
+    .main-area { min-width: 0; max-width: calc(100% - 220px); }
+}
+@media (min-width: 992px) and (max-height: 700px) {
+    .dashboard-slot { margin-top: 84px; }
+    .bottom-section { min-height: 0; padding-top: 8px; padding-bottom: 12px; }
+    .bottom-wave-svg, .bottom-bg-fill { display: none; }
+    .sidebar-signout { margin-top: 8px !important; }
+}
+
+/* ---------------------------------------------------------------------
+   5. BOOTSTRAP COLUMNS WHEN THE SIDEBAR EATS 220-260px
+      Bootstrap breakpoints look at the *screen*, not the space left of
+      the sidebar, so md/lg columns get too narrow on 992-1399px.
+   --------------------------------------------------------------------- */
+@media (min-width: 768px) and (max-width: 1399.98px) {
+    .main-content .row > .col-md-2  { flex: 0 0 auto; width: 33.3333%; }
+    .main-content .row > .col-md-3  { flex: 0 0 auto; width: 50%; }
+    .main-content .row > .col-md-4  { flex: 0 0 auto; width: 50%; }
+}
+@media (min-width: 992px) and (max-width: 1399.98px) {
+    .main-content .row > .col-lg-3  { flex: 0 0 auto; width: 50%; }
+    .main-content .row > .col-lg-5,
+    .main-content .row > .col-lg-7  { flex: 0 0 auto; width: 100%; }
+}
+
+/* ---------------------------------------------------------------------
+   6. TABLET PORTRAIT & BELOW  (<= 991px)
+   6a. shared: main area, topbar, content padding
+   --------------------------------------------------------------------- */
+@media (max-width: 991.98px) {
+    .dashboard-container { display: block !important; min-height: 0; }
+    .main-area { margin-left: 0 !important; max-width: 100%; }
+    .topbar { padding: 10px 20px; position: sticky; top: 0; }
+    .main-content { padding: 20px !important; }
+
+    /* two-column filter/heading rows can wrap */
+    .section-heading, .filter-search-row, .selection-bar, .button-group,
+    .form-actions, .modal-footer { flex-wrap: wrap; gap: 10px; }
+}
+
+/* ---------------------------------------------------------------------
+   6b. ADMIN PANEL (layouts/admin.blade.php  ->  <body class="admin-layout">)
+       Desktop: normal sidebar (untouched).
+       <= 991px: sidebar becomes a slide-in drawer opened by the
+       hamburger button; topbar = [ ☰  logo + title ........ 🔔 ]
+   --------------------------------------------------------------------- */
+.menu-toggle, .topbar-brand, .sidebar-close, .sidebar-backdrop { display: none; }
+
+@media (max-width: 991.98px) {
+    /* ---- top header ---- */
+    .admin-layout .topbar {
+        padding: 10px 14px;
+        gap: 12px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+    .admin-layout .topbar-search { display: none; }   /* empty in the layout; remove this line if you add a search box */
+    .admin-layout .menu-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        flex: 0 0 auto; width: 48px; height: 48px; min-height: 0;
+        border: 1px solid var(--border, #e8ebe9); border-radius: 12px;
+        background: #fff; color: #16743a; font-size: 1.2rem; cursor: pointer;
+    }
+    .admin-layout .menu-toggle:active { background: #f2f8f4; }
+    .admin-layout .topbar-brand {
+        display: flex; align-items: center; gap: 10px;
+        flex: 1 1 auto; min-width: 0;
+        text-decoration: none;
+    }
+    .admin-layout .topbar-brand img {
+        width: 54px; height: 54px; flex: 0 0 auto; object-fit: contain;
+        padding: 2px; border-radius: 50%; background: #fff;
+        border: 1.5px solid #cfe8d8;
+    }
+    .admin-layout .topbar-brand-text { display: flex; flex-direction: column; min-width: 0; }
+    .admin-layout .topbar-brand-text strong {
+        font-size: 18px; font-weight: 800; line-height: 1.15; letter-spacing: .2px;
+        color: #16743a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .admin-layout .topbar-brand-text small {
+        font-size: 12.5px; font-weight: 600; line-height: 1.3; color: #7c8a86;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .admin-layout .topbar-right { flex: 0 0 auto; gap: 8px; margin-left: auto; }
+    .admin-layout .topbar-right .bell-btn { width: 46px; height: 46px; font-size: 1.1rem; }
+
+    /* ---- drawer ---- */
+    .admin-layout .sidebar {
+        position: fixed !important;
+        top: 0; left: 0; bottom: 0;
+        width: min(300px, 86vw) !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        transform: translateX(-105%);
+        visibility: hidden;                       /* closed drawer is not focusable */
+        transition: transform .25s ease, visibility 0s linear .25s;
+        z-index: 1100;
+    }
+    .admin-layout.sidebar-open { overflow: hidden; }
+    .admin-layout.sidebar-open .sidebar {
+        transform: none;
+        visibility: visible;
+        transition: transform .25s ease;
+        box-shadow: 0 0 40px rgba(15, 36, 25, .28);
+    }
+    .admin-layout .sidebar > form { position: relative; z-index: 2; margin-top: auto; padding: 12px 18px 18px; }
+    .admin-layout .nav-menu { flex: 0 0 auto; overflow: visible; }
+
+    .admin-layout .sidebar-close {
+        display: inline-flex; align-items: center; justify-content: center;
+        position: absolute; top: 10px; right: 10px; z-index: 5;
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 1px solid var(--border, #e8ebe9); background: #fff; color: #3f4d45; cursor: pointer;
+    }
+    .admin-layout .sidebar-backdrop {
+        display: block; position: fixed; inset: 0; z-index: 1050;
+        background: rgba(15, 36, 25, .45);
+        opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    }
+    .admin-layout.sidebar-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+}
+@media (max-width: 380px) {
+    .admin-layout .topbar { padding-left: 10px; padding-right: 10px; gap: 8px; }
+    .admin-layout .menu-toggle { width: 44px; height: 44px; }
+    .admin-layout .topbar-brand { gap: 8px; }
+    .admin-layout .topbar-brand img { width: 46px; height: 46px; }
+    .admin-layout .topbar-brand-text strong { font-size: 16px; }
+    .admin-layout .topbar-brand-text small { font-size: 11.5px; }
+    .admin-layout .topbar-right .bell-btn { width: 42px; height: 42px; }
+}
+@media (max-width: 340px) {
+    .admin-layout .topbar-brand img { width: 40px; height: 40px; }
+    .admin-layout .topbar-brand-text strong { font-size: 14px; }
+    .admin-layout .topbar-brand-text small { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .admin-layout .sidebar, .admin-layout .sidebar-backdrop { transition: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   6c. CANDIDATE PORTAL (layouts/app.blade.php)  -  compact top bar
+       (only body WITHOUT .admin-layout)
+       [logo+title ........ Sign out]
+       [Dashboard][step][step][step] ->  (scrolls sideways)
+   --------------------------------------------------------------------- */
+@media (max-width: 991.98px) {
+    body:not(.admin-layout) .sidebar {
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        padding: 10px 12px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border, #e8ebe9);
+        z-index: 1000;
+    }
+    body:not(.admin-layout) .top-section { display: contents; }
+    body:not(.admin-layout) .top-bg-fill, body:not(.admin-layout) .top-wave-svg,
+    body:not(.admin-layout) .bottom-wave-svg, body:not(.admin-layout) .bottom-bg-fill { display: none !important; }
+
+    body:not(.admin-layout) .brand { order: 1; flex: 1 1 auto; padding: 0 !important; gap: 10px; min-width: 0; }
+    body:not(.admin-layout) .logo-badge { width: 40px; height: 40px; }
+    body:not(.admin-layout) .brand-text h1 { font-size: 14px; white-space: normal; }
+    body:not(.admin-layout) .brand-text p  { white-space: normal; }
+
+    body:not(.admin-layout) .bottom-section,
+    body:not(.admin-layout) .sidebar > form {
+        order: 2; margin: 0 !important; padding: 0 !important;
+        min-height: 0 !important; flex: 0 0 auto;
+    }
+    body:not(.admin-layout) .sidebar-signout {
+        width: auto !important; margin: 0 !important;
+        padding: 8px 14px !important; white-space: nowrap;
+    }
+    body:not(.admin-layout) .user-info { display: none; }
+
+    body:not(.admin-layout) .dashboard-slot { order: 3; margin: 0 !important; padding: 0 !important; flex: 0 0 auto; }
+    body:not(.admin-layout) .nav-menu {
+        order: 4;
+        flex: 1 1 0 !important;
+        min-width: 0;
+        flex-direction: row !important;
+        gap: 6px;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    body:not(.admin-layout) .nav-item { flex: 0 0 auto; white-space: nowrap; padding: 9px 14px; border-radius: 12px; }
+    body:not(.admin-layout) .nav-item i,
+    body:not(.admin-layout) .nav-item svg { margin-right: 8px; }
+    body:not(.admin-layout) .nav-section-label,
+    body:not(.admin-layout) .nav-divider,
+    body:not(.admin-layout) .nav-placeholder { display: none !important; }
+}
+
+/* ---------------------------------------------------------------------
+   7. PHONE & LARGE PHONE  (<= 767px)
+   --------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    .main-content { padding: 14px !important; }
+    .topbar { padding: 8px 14px; }
+
+    /* iOS Safari zooms into inputs < 16px: stop that without disabling pinch-zoom */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    select, textarea { font-size: 16px !important; }
+
+    /* Bootstrap grid: everything full width */
+    .main-content .row > [class*="col-md-"],
+    .main-content .row > [class*="col-lg-"] { flex: 0 0 auto; width: 100%; }
+    .main-content .row > .col-6 { width: 50%; }
+
+    /* cards / panels */
+    .card-panel, .stat-card { padding: 16px !important; }
+    .stat-card .value { font-size: 1.3rem; }
+
+    /* page headings + filters */
+    .section-heading { flex-direction: column; align-items: stretch !important; }
+    .pill-select, .filter-select, .session-filter-select { width: 100%; max-width: 100%; }
+    .filter-pills-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .applications-search-form, .search-box, .topbar-search { width: 100% !important; max-width: 100% !important; }
+
+    /* candidate pages */
+    .review-row, .review-grid { grid-template-columns: 1fr !important; }
+    .programs-grid, .documents-grid { grid-template-columns: 1fr !important; }
+    .status-cards-grid { grid-template-columns: 1fr !important; }
+    .program-row { gap: 10px; }
+    .program-row .info, .program-checkbox-label { min-width: 0 !important; flex: 1 1 100%; }
+    .apply-now-btn, .view-link { white-space: normal; }
+    .selection-bar { flex-direction: column; align-items: stretch; }
+    .selection-bar > * { width: 100%; }
+    .button-group, .form-actions { flex-direction: column-reverse; align-items: stretch; }
+    .button-group > *, .form-actions > * { width: 100%; text-align: center; justify-content: center; }
+    .btn-primary-custom { flex: 1 1 auto; }
+    .file-upload-box { min-height: 110px; }
+    .undertakings-container { padding-left: 0; padding-right: 0; }
+    .undertaking-card .undertaking-content { max-height: 55vh; }
+
+    /* Undertakings progress steps */
+    .progress-indicator { gap: 6px; justify-content: space-between; }
+    .progress-step { min-width: 0; flex: 1 1 0; flex-direction: column; text-align: center; }
+    .progress-label { min-width: 0 !important; font-size: .7rem; line-height: 1.2; }
+    .progress-circle { width: 34px; height: 34px; flex-shrink: 0; }
+
+    /* admin */
+    .review-grid > div { min-width: 0; }
+    .doc-review-row, .choice-review-row { flex-wrap: wrap; gap: 8px; }
+    .action-btn { padding: 6px 10px; }
+    #applicationOverviewChart, .chart-box canvas { max-width: 100% !important; height: auto !important; }
+
+    /* modals: nearly full screen, scroll inside */
+    .modal-dialog { margin: 8px auto; max-width: calc(100vw - 16px); }
+    .modal-dialog-scrollable .modal-content { max-height: calc(100dvh - 16px); }
+    .modal-body { overflow-x: hidden; padding: 14px; }
+    .modal-footer > * { flex: 1 1 auto; }
+    .modal-content { border-radius: 14px; }
+
+    /* alerts / toasts */
+    .alert-container { left: 10px; right: 10px; max-width: none; top: 10px; }
+    .swal2-popup { width: min(360px, 92vw) !important; }
+}
+
+/* ---------------------------------------------------------------------
+   8. PHONE  (<= 575px)
+   --------------------------------------------------------------------- */
+@media (max-width: 575.98px) {
+    .main-content { padding: 12px !important; }
+    body:not(.admin-layout) .sidebar { padding: 8px 10px; }
+    body:not(.admin-layout) .nav-item { font-size: 13px; padding: 8px 12px; }
+    .stepper-title { font-size: 1.1rem; }
+    h1 { font-size: clamp(1.4rem, 6vw, 2rem); }
+    h2 { font-size: clamp(1.2rem, 5vw, 1.6rem); }
+    .status-card-arrow { display: none; }
+    .topbar-title { font-size: 1rem; }
+}
+
+/* ---------------------------------------------------------------------
+   9. SMALL PHONE / 300-400% ZOOM  (<= 380px)
+   --------------------------------------------------------------------- */
+@media (max-width: 380px) {
+    .main-content { padding: 10px !important; }
+    body:not(.admin-layout) .brand-text p { display: none; }
+    body:not(.admin-layout) .brand-text h1 { font-size: 12.5px; }
+    body:not(.admin-layout) .sidebar-signout { padding: 7px 10px !important; font-size: .72rem !important; }
+    body:not(.admin-layout) .sidebar-signout i { display: none; }
+    .card-panel, .stat-card { padding: 12px !important; }
+    .stat-card .icon-box { width: 40px; height: 40px; }
+    .main-content .row > .col-6 { width: 100%; }
+    .modal-body { padding: 10px; }
+    .progress-label { display: none; }
+}
+@media (max-width: 300px) {
+    html { font-size: 90%; }
+    body:not(.admin-layout) .nav-item { padding: 7px 10px; }
+}
+
+/* ---------------------------------------------------------------------
+   10. AUTH PAGES  (login / signup / forgot password)
+       .container is used only by layouts/auth.blade.php
+   --------------------------------------------------------------------- */
+body:has(.preloader) { width: 100% !important; }      /* 100vw caused a sideways scrollbar */
+body:has(.preloader) { background-attachment: scroll; } /* fixed bg is broken on iOS + zoom */
+
+.preloader ~ #content .container {
+    width: min(450px, 94%) !important;
+    max-width: 100% !important;
+    padding: clamp(24px, 6vw, 60px) clamp(18px, 6vw, 60px);
+}
+.preloader ~ #content .input_field input,
+.preloader ~ #content .input_field select {
+    width: 100% !important;
+    max-width: 100%;
+}
+.preloader ~ #content .container form { width: 100%; }
+.preloader ~ #content .center { width: min(30%, 110px); min-width: 64px; }
+.preloader ~ #content button, .preloader ~ #content .btn-theme { font-size: clamp(1rem, 4.2vw, 1.4rem); }
+.preloader ~ #content .input_field input::placeholder { font-size: clamp(.95rem, 3.6vw, 1.2rem); }
+.preloader ~ #content .row { display: flex !important; flex-direction: row; }
+@media (max-width: 450px) {
+    body:has(.preloader) { padding: 12px 0; }
+    .preloader ~ #content .row { flex-direction: column; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+    body:has(.preloader) { align-items: flex-start; }
+}
+
+/* ---------------------------------------------------------------------
+   11. LANDING PAGE  (resources/views/landing.blade.php)
+   --------------------------------------------------------------------- */
+@media (max-width: 1199.98px) {
+    .hero-inner, .features, .programs, .footer-inner { padding-left: 24px; padding-right: 24px; }
+    .hero h1 { font-size: clamp(2rem, 5.2vw, 3.4rem); }
+}
+@media (max-width: 991.98px) {
+    .hero-inner { padding-left: 20px; padding-right: 20px; }
+    .topnav { flex-wrap: wrap; gap: 12px; padding: 18px 0; }
+    .hero-grid { grid-template-columns: 1fr !important; gap: 28px; }
+    .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .program-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .section-head { flex-wrap: wrap; gap: 12px; }
+    .slideshow { max-width: 100%; }
+}
+@media (max-width: 575.98px) {
+    .hero-inner, .features, .programs, .footer-inner { padding-left: 16px; padding-right: 16px; }
+    .brand-name { font-size: 15px; }
+    .btn-signin { padding: 9px 16px; }
+    .hero h1 { font-size: clamp(1.7rem, 8vw, 2.2rem); }
+    .hero p.lead { font-size: 15px; }
+    .feature-grid, .program-grid { grid-template-columns: 1fr !important; }
+    .stats { gap: 16px; }
+    .stat-num { font-size: 24px; }
+    .category-head { flex-wrap: wrap; gap: 8px; }
+    .duration-pill, .btn-ghost { white-space: normal; }
+    .section-head h2 { font-size: clamp(1.4rem, 6.5vw, 1.9rem); }
+    .footer-inner { grid-template-columns: 1fr !important; }
+}
+
+
+/* program cards: tag + title must wrap instead of pushing the page wider.
+   (Also restores the tag's white text - ".program-card span" was overriding it.) */
+.program-card { flex-wrap: wrap; min-width: 0; }
+.program-card > span:not(.program-tag) { flex: 1 1 140px; min-width: 0; }
+.program-card .program-tag { flex-shrink: 1; max-width: 100%; color: #fff; font-size: 11.5px; font-weight: 700; line-height: 1.3; }
+
+/* ---------------------------------------------------------------------
+   12. SHARED HEADER PARTIAL (partials/header.blade.php)
+   --------------------------------------------------------------------- */
+@media (max-width: 991.98px) {
+    .topbar-title {
+        position: static !important; transform: none !important;
+        white-space: normal !important; font-size: clamp(1rem, 4vw, 1.5rem) !important;
+        text-align: center; flex: 1 1 100%; order: 3;
+    }
+    .user-menu-dropdown { right: 0; max-width: calc(100vw - 24px); }
+}
+
+/* ---------------------------------------------------------------------
+   13. PRINTABLE APPLICATION FORM (candidate/application-print.blade.php)
+       On screen it must scroll/wrap on phones; @media print is untouched.
+   --------------------------------------------------------------------- */
+@media screen and (max-width: 991.98px) {
+    .field-line .label { min-width: 0 !important; white-space: normal !important; }
+    .field-line .value { white-space: normal !important; }
+    .header { flex-wrap: wrap; gap: 12px; }
+    .checklist { grid-template-columns: 1fr !important; }
+}

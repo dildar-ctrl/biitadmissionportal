@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Candidate;
 use App\Models\Education;
-use App\Models\MarksType;
-use App\Models\BoardUniversity;
 
 class CandidateProfileController extends Controller
 {
@@ -28,15 +26,10 @@ class CandidateProfileController extends Controller
                 ->get();
         }
 
-        $marksTypes = MarksType::all();
-        $boardUniversities = BoardUniversity::orderBy('title')->get();
-
         return view('candidate.profile', compact(
             'candidate',
             'candidateLogin',
-            'educations',
-            'marksTypes',
-            'boardUniversities'
+            'educations'
         ));
     }
 
@@ -52,31 +45,36 @@ class CandidateProfileController extends Controller
             'dob' => ['required', 'date', 'before:today'],
             'postal_address' => ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9\s\.\,\-\/]+$/'],
             'permanent_address' => ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9\s\.\,\-\/]+$/'],
-            'district' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
             'gender' => ['required', 'in:Male,Female,Other'],
             'mobile_no' => ['required', 'regex:/^03\d{9}$/'],
-            'alternative_mobile_no' => ['nullable', 'regex:/^03\d{9}$/', 'different:mobile_no'],
             'religion' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
             'marital_status' => ['required', 'in:Single,Married'],
-            'province_of_domicile' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
-            'district_of_domicile' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
+            'nationality' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
+            'medicalissue' => ['required', 'string', 'max:100'],
+            'activities' => ['nullable', 'string', 'max:100'],
+            'PMASREGNO' => ['nullable', 'string', 'max:100'],
 
-            // ---- Father's details ----
+            // ---- Father / Guardian details ----
             'father_name' => ['required', 'string', 'max:150', 'regex:/^[a-zA-Z\s\.\']+$/'],
             'father_cnic' => ['required', 'regex:/^\d{5}-\d{7}-\d{1}$/', 'different:cnic'],
-            'father_occupation' => ['required', 'string', 'max:150', 'regex:/^[a-zA-Z0-9\s\.\-\/]+$/'],
+            'relationshipwithguardian' => ['required', 'string', 'max:150', 'regex:/^[a-zA-Z\s]+$/'],
             'father_mobile_no' => ['required', 'regex:/^03\d{9}$/'],
-            'father_email' => ['required', 'email', 'max:150'],
+
+            // ---- Emergency contact ----
+            'emergencycontactname' => ['required', 'string', 'max:150', 'regex:/^[a-zA-Z\s\.\']+$/'],
+            'emergencycontactrelationship' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z\s]+$/'],
+            'emergencycontact' => ['required', 'regex:/^03\d{9}$/', 'different:mobile_no'],
 
             // ---- Education (repeatable array) ----
             'education' => ['required', 'array', 'min:1'],
             'education.*.degree' => ['required', 'string', 'max:150', 'regex:/^[a-zA-Z0-9\s\.\-\/]+$/'],
-            'education.*.major_subject' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z0-9\s\,\.\-\/]+$/'],
+            'education.*.boardname' => ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9\s\.\-\/]+$/'],
+            'education.*.majorsubjects' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z0-9\s\,\.\-\/]+$/'],
             'education.*.date_of_passing' => ['required', 'date', 'before_or_equal:today'],
-            'education.*.marks_type_id' => ['required', 'exists:markstype,id'],
+            'education.*.registrationno' => ['nullable', 'string', 'max:50'],
             'education.*.obtained_marks' => ['required', 'numeric', 'min:0'],
             'education.*.total_marks' => ['required', 'numeric', 'min:1'],
-            'education.*.board_university_id' => ['required', 'exists:boarduniversity,id'],
+            'education.*.division' => ['nullable', 'string', 'max:50'],
         ], [
             'fname.regex' => 'First name may only contain letters.',
             'lname.regex' => 'Last name may only contain letters.',
@@ -84,21 +82,22 @@ class CandidateProfileController extends Controller
             'email.email' => 'Please enter a valid email address.',
             'cnic.regex' => 'CNIC must be in the format 12345-1234567-1.',
             'mobile_no.regex' => 'Mobile number must be in the format 03XXXXXXXXX.',
-            'alternative_mobile_no.regex' => 'Alternative mobile number must be in the format 03XXXXXXXXX.',
-            'alternative_mobile_no.different' => 'Alternative mobile number must be different from your mobile number.',
-            'district.regex' => 'District may only contain letters.',
             'religion.regex' => 'Religion may only contain letters.',
-            'province_of_domicile.regex' => 'Province of domicile may only contain letters.',
-            'district_of_domicile.regex' => 'District of domicile may only contain letters.',
+            'nationality.regex' => 'Nationality may only contain letters.',
             'father_name.regex' => "Father's name may only contain letters.",
             'father_cnic.regex' => "Father's CNIC must be in the format 12345-1234567-1.",
             'father_cnic.different' => "Father's CNIC cannot be the same as your own CNIC.",
             'father_mobile_no.regex' => "Father's mobile number must be in the format 03XXXXXXXXX.",
-            'father_occupation.regex' => "Father's occupation may only contain letters, numbers, spaces, dots, dashes, and slashes.",
+            'relationshipwithguardian.regex' => 'Relationship with guardian may only contain letters.',
             'postal_address.regex' => 'Postal address may only contain letters, numbers, spaces, dots, commas, dashes, and slashes.',
             'permanent_address.regex' => 'Permanent address may only contain letters, numbers, spaces, dots, commas, dashes, and slashes.',
+            'emergencycontactname.regex' => 'Emergency contact name may only contain letters.',
+            'emergencycontactrelationship.regex' => 'Emergency contact relationship may only contain letters.',
+            'emergencycontact.regex' => 'Emergency contact number must be in the format 03XXXXXXXXX.',
+            'emergencycontact.different' => 'Emergency contact number must be different from your own mobile number.',
             'education.*.degree.regex' => 'Degree may only contain letters, numbers, spaces, dots, dashes, and slashes.',
-            'education.*.major_subject.regex' => 'Major subject may only contain letters, numbers, spaces, commas, dots, dashes, and slashes.',
+            'education.*.boardname.regex' => 'Board/University name may only contain letters, numbers, spaces, dots, dashes, and slashes.',
+            'education.*.majorsubjects.regex' => 'Major subjects may only contain letters, numbers, spaces, commas, dots, dashes, and slashes.',
         ]);
 
         // Business rule: Matric/O-Level and Intermediate/A-Level are mandatory
@@ -141,19 +140,21 @@ class CandidateProfileController extends Controller
                 'dob' => $request->dob,
                 'postal_address' => $request->postal_address,
                 'permanent_address' => $request->permanent_address,
-                'district' => $request->district,
                 'gender' => $request->gender,
                 'mobile_no' => $request->mobile_no,
-                'alternative_mobile_no' => $request->alternative_mobile_no,
                 'religion' => $request->religion,
                 'marital_status' => $request->marital_status,
-                'province_of_domicile' => $request->province_of_domicile,
-                'district_of_domicile' => $request->district_of_domicile,
+                'nationality' => $request->nationality,
+                'medicalissue' => $request->medicalissue,
+                'activities' => $request->activities,
+                'PMASREGNO' => $request->PMASREGNO,
                 'father_name' => $request->father_name,
                 'father_cnic' => $request->father_cnic,
-                'father_occupation' => $request->father_occupation,
+                'relationshipwithguardian' => $request->relationshipwithguardian,
                 'father_mobile_no' => $request->father_mobile_no,
-                'father_email' => $request->father_email,
+                'emergencycontactname' => $request->emergencycontactname,
+                'emergencycontactrelationship' => $request->emergencycontactrelationship,
+                'emergencycontact' => $request->emergencycontact,
             ]
         );
 
@@ -161,15 +162,20 @@ class CandidateProfileController extends Controller
         Education::where('candidate_id', $candidate->id)->delete();
 
         foreach ($request->education as $edu) {
+            $obtained = (float) $edu['obtained_marks'];
+            $total = (float) $edu['total_marks'];
+
             Education::create([
                 'candidate_id' => $candidate->id,
                 'degree' => $edu['degree'],
-                'selected_subject' => $edu['major_subject'] ?? null,
+                'boardname' => $edu['boardname'],
+                'majorsubjects' => $edu['majorsubjects'] ?? null,
                 'date_of_passing' => $edu['date_of_passing'],
-                'markstype_id' => $edu['marks_type_id'],
-                'obtained_marks' => $edu['obtained_marks'],
-                'total_marks' => $edu['total_marks'],
-                'boarduniversity_id' => $edu['board_university_id'],
+                'registrationno' => $edu['registrationno'] ?? null,
+                'obtained_marks' => $obtained,
+                'total_marks' => $total,
+                'percentage' => $total > 0 ? round(($obtained / $total) * 100, 2) : 0,
+                'division' => $edu['division'] ?? null,
             ]);
         }
 
@@ -180,7 +186,7 @@ class CandidateProfileController extends Controller
     public function view()
     {
         $candidateLoginId = Auth::guard('web')->id();
-        $candidate = Candidate::with('education.marksType', 'education.boardUniversity')
+        $candidate = Candidate::with('education')
             ->where('candidate_login_id', $candidateLoginId)
             ->first();
 

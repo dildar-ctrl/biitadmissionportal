@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Education extends Model
 {
-    // ✅ Yeh line add karein - timestamps disable karne ke liye
+    // education table only has created_at (no updated_at), so timestamps stay off
     public $timestamps = false;
 
     protected $table = 'education';
@@ -14,37 +14,18 @@ class Education extends Model
     protected $fillable = [
         'candidate_id',
         'degree',
-        'selected_subject',  // ✅ Yeh bhi add karein (major subject ke liye)
+        'boardname',
+        'majorsubjects',
         'date_of_passing',
-        'markstype_id',
+        'registrationno',
         'obtained_marks',
         'total_marks',
-        'boarduniversity_id',
+        'percentage',
+        'division',
     ];
 
     public function candidate()
     {
         return $this->belongsTo(Candidate::class, 'candidate_id');
-    }
-
-    // one education entry can have multiple major subjects
-    public function majorSubjects()
-    {
-        return $this->belongsToMany(
-            MajorSubject::class,
-            'majorsubject',
-            'education_id',
-            'majorsubject_id'
-        );
-    }
-
-    public function marksType()
-    {
-        return $this->belongsTo(MarksType::class, 'markstype_id');
-    }
-
-    public function boardUniversity()
-    {
-        return $this->belongsTo(BoardUniversity::class, 'boarduniversity_id');
     }
 }

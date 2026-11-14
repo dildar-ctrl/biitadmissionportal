@@ -13,9 +13,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.5/sweetalert2.all.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.5/sweetalert2.min.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
     {{-- ============================================= --}}
     {{-- SHARED THEME CSS — edit here, applies everywhere --}}
     {{-- ============================================= --}}
@@ -27,19 +27,26 @@
         font-family: 'Open Sans', sans-serif;
     }
 
-    body {
-        background-image: url({{ asset('login.png') }});
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
-        width: 100vw;
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 30px 0;
-        position: relative;
-    }
+    html, body {
+    min-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+   body {
+    background-image: url({{ asset('login.png') }});
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
+    position: relative;
+}
 
     /* Green shade overlay on background image */
     body::before {
@@ -260,13 +267,44 @@
     .alert {
         animation: slideIn 0.3s ease;
     }
+
+    /* SweetAlert2 safety-net + sizing (smaller than login card) */
+    .swal2-container {
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        z-index: 99999 !important;
+    }
+
+    .swal2-popup {
+        width: 360px !important;
+        padding: 1.5em !important;
+    }
+
+    .swal2-title {
+        font-size: 1.4rem !important;
+    }
+
+    .swal2-html-container {
+        font-size: 0.95rem !important;
+    }
+
+    .swal2-icon {
+        width: 60px !important;
+        height: 60px !important;
+        margin: 0.6em auto !important;
+    }
+
+    .swal2-confirm, .swal2-cancel {
+        font-size: 0.9rem !important;
+        padding: 0.5em 1.5em !important;
+    }
 </style>
 
     {{-- page-specific extra CSS, if any --}}
     @stack('styles')
-
-    {{-- shared responsive fixes — must stay LAST so it can override page styles --}}
-    <link rel="stylesheet" href="{{ asset('css/portal-responsive.css') }}">
 </head>
 
 <body>

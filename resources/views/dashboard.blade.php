@@ -1,206 +1,332 @@
-@extends('admin.layout')
+@extends('layouts.app')
 
 @section('title', 'Dashboard')
-
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/biit-responsive.css') }}">
+@endpush
+@section('styles')
 <style>
-    /* ---------- Process Stepper ---------- */
-    .stepper-title {
-        text-align: center;
-        color: var(--primary);
-        font-size: 1.1rem;
-        font-weight: 800;
-        margin-bottom: 20px;
+    .dashboard-header {
+        margin-bottom: 40px;
     }
 
-    .process-stepper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 32px;
-    }
-
-    .step-card {
-        background-color: #fff;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 14px 18px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 190px;
-        text-decoration: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .step-card:hover {
-        border-color: var(--primary);
-        transform: translateY(-2px);
-    }
-
-    .step-card.active {
-        border-color: var(--primary);
-        box-shadow: 0 4px 14px rgba(12, 115, 71, 0.15);
-    }
-
-    .step-circle {
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #0c7347, #06b6d4);
-        color: #fff;
-        font-weight: 800;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 0.95rem;
-    }
-
-    .step-text strong {
-        display: block;
-        font-size: 0.88rem;
+    .greeting-text {
+        font-size: 1.8rem;
+        font-weight: 700;
         color: var(--text-dark);
-    }
-
-    .step-text span {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-    }
-
-    .step-arrow {
-        color: #c7c9dc;
-        font-size: 0.9rem;
-    }
-
-    @media (max-width: 900px) {
-        .step-arrow { display: none; }
-        .process-stepper { flex-direction: column; align-items: stretch; }
-        .step-card { min-width: 0; }
-    }
-
-    /* ---------- Instructions Panel ---------- */
-    .instructions-panel {
-        background-color: #fff;
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        overflow: hidden;
-    }
-
-    .instructions-header {
-        background-color: var(--primary);
-        color: #fff;
-        text-align: center;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        padding: 16px;
-        font-size: 0.95rem;
-    }
-
-    .instructions-body {
-        padding: 22px;
-    }
-
-    .instruction-item {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 18px 20px;
-        margin-bottom: 14px;
-    }
-
-    .instruction-item:last-child {
-        margin-bottom: 0;
-    }
-
-    .instruction-item h6 {
-        color: var(--primary);
-        font-weight: 700;
-        font-size: 0.95rem;
         margin-bottom: 8px;
     }
 
-    .instruction-item p {
-        font-size: 0.85rem;
-        color: #374151;
-        margin-bottom: 4px;
+    .greeting-subtext {
+        font-size: 0.95rem;
+        color: var(--text-muted);
     }
 
-    .instruction-item .urdu {
-        direction: rtl;
-        text-align: right;
+    /* -------- APPLICATION STATUS CARD -------- */
+  .app-status-card {
+    background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
+    border-radius: 16px;
+    padding: 16px 24px;
+    color: #fff;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 18px rgba(23,117,59,0.28);
+}
+
+.app-status-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    opacity: 0.85;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.app-status-number {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-status-badge {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.progress-section {
+    margin-top: 4px;
+}
+
+.progress-label {
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+    .progress-fill {
+        height: 100%;
+        background-color: #fff;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    /* -------- STATUS CARDS GRID -------- */
+    .status-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .status-card {
+        background-color: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .status-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 4px 16px rgba(12, 115, 71, 0.12);
+    }
+
+    .status-card-icon {
+        width: 56px;
+        height: 56px;
+      background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: #fff;
+        margin-bottom: 16px;
+    }
+
+    .status-card-icon.disabled {
+        background-color: #d1d5db;
+    }
+
+    .status-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--primary);
+        display: inline-flex;
+    }
+
+    .status-indicator.completed {
+      background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
+    }
+
+    .status-card-description {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+        flex-grow: 1;
+    }
+
+    .status-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    .status-card-footer span {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .status-card-arrow {
+        color: var(--primary);
+        font-size: 1.2rem;
+    }
+
+    /* -------- NEXT STEP SECTION -------- */
+    .next-step-section {
+        background-color: #fff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+        text-align: center;
+    }
+
+    .next-step-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 12px;
+    }
+
+    .next-step-description {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+
+    .continue-btn {
+       background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
+        color: #fff;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 8px;
         font-size: 0.95rem;
-        color: #374151;
-        line-height: 1.9;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .continue-btn:hover {
+        background-color: var(--primary-light);
+        transform: translateX(4px);
+    }
+
+    @media (max-width: 768px) {
+        .status-cards-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .greeting-text {
+            font-size: 1.4rem;
+        }
     }
 </style>
-@endpush
+@endsection
 
 @section('content')
 
-<div class="stepper-title">Application Process</div>
+<!-- APPLICATION STATUS CARD -->
+<div class="app-status-card">
 
-<div class="process-stepper">
-    <a href="{{ route('dashboard') }}" class="step-card {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-        <div class="step-circle">1</div>
-        <div class="step-text"><strong>Dashboard</strong><span>Instructions</span></div>
+    <div class="app-status-number">
+        <div>
+            <div class="app-status-label">Application Number</div>
+            {{ $applicationNumber ?? 'Not generated yet' }}
+        </div>
+        <span class="app-status-badge">{{ $applicationStatus }}</span>
+    </div>
+
+    <div class="progress-section">
+        <div class="progress-label">
+            <span>Completion</span>
+            <span>{{ $completionPercent }}%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ $completionPercent }}%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- STATUS CARDS GRID -->
+<div class="status-cards-grid">
+    <!-- Program Selected -->
+    <a href="{{ route('apply.index') }}" class="status-card">
+        <div class="status-card-icon {{ $programSelected ? '' : 'disabled' }}">👨‍🎓</div>
+        <div class="status-card-title">
+            <span class="status-indicator {{ $programSelected ? 'completed' : '' }}"></span>
+            Program selected
+        </div>
+        <div class="status-card-description">
+            @if($programSelected)
+                {{ $selectedProgramName }} ({{ $programChoicesCount }} {{ $programChoicesCount == 1 ? 'choice' : 'choices' }} selected)
+            @else
+                Not selected yet
+            @endif
+        </div>
+        <div class="status-card-footer">
+            <span></span>
+            <span class="status-card-arrow">→</span>
+        </div>
     </a>
-    <i class="fas fa-arrow-right step-arrow"></i>
 
-    <a href="{{ route('profile.edit') }}" class="step-card {{ request()->routeIs('profile.*') ? 'active' : '' }}">
-        <div class="step-circle">2</div>
-        <div class="step-text"><strong>Profile</strong><span>Create / Update</span></div>
+    <!-- Profile Completed -->
+    <a href="{{ route('profile.edit') }}" class="status-card">
+        <div class="status-card-icon {{ $profileComplete ? '' : 'disabled' }}">👤</div>
+        <div class="status-card-title">
+            <span class="status-indicator {{ $profileComplete ? 'completed' : '' }}"></span>
+            Profile completed
+        </div>
+        <div class="status-card-description">{{ $profileFilledCount }}/{{ $profileTotalFields }} fields filled</div>
+        <div class="status-card-footer">
+            <span></span>
+            <span class="status-card-arrow">→</span>
+        </div>
     </a>
-    <i class="fas fa-arrow-right step-arrow"></i>
 
-    <a href="{{ route('document.edit') }}" class="step-card {{ request()->routeIs('document.*') ? 'active' : '' }}">
-        <div class="step-circle">3</div>
-        <div class="step-text"><strong>Documents</strong><span>Upload Required Files</span></div>
+    <!-- Documents Uploaded -->
+    <a href="{{ route('document.edit') }}" class="status-card">
+        <div class="status-card-icon {{ $documentsComplete ? '' : 'disabled' }}">📁</div>
+        <div class="status-card-title">
+            <span class="status-indicator {{ $documentsComplete ? 'completed' : '' }}"></span>
+            Documents uploaded
+        </div>
+        <div class="status-card-description">{{ $documentsUploadedCount }}/{{ $documentsTotalTypes }} documents uploaded</div>
+        <div class="status-card-footer">
+            <span></span>
+            <span class="status-card-arrow">→</span>
+        </div>
     </a>
-    <i class="fas fa-arrow-right step-arrow"></i>
 
-    <a href="{{ route('profile.view') }}" class="step-card {{ request()->routeIs('profile.view') ? 'active' : '' }}">
-        <div class="step-circle">4</div>
-        <div class="step-text"><strong>View Profile</strong><span>Review Your Details</span></div>
-    </a>
-    <i class="fas fa-arrow-right step-arrow"></i>
-
-    <a href="{{ route('apply.index') }}" class="step-card {{ request()->routeIs('apply.*') ? 'active' : '' }}">
-        <div class="step-circle">5</div>
-        <div class="step-text"><strong>Apply & Submit</strong><span>Select Program, Download/Print</span></div>
+    <!-- Application Submitted -->
+    <a href="{{ route('apply.status') }}" class="status-card">
+        <div class="status-card-icon {{ $applicationSubmitted ? '' : 'disabled' }}">📋</div>
+        <div class="status-card-title">
+            <span class="status-indicator {{ $applicationSubmitted ? 'completed' : '' }}"></span>
+            Application submitted
+        </div>
+        <div class="status-card-description">{{ $applicationSubmitted ? 'Submitted' : 'Review and submit your application' }}</div>
+        <div class="status-card-footer">
+            <span></span>
+            <span class="status-card-arrow">→</span>
+        </div>
     </a>
 </div>
 
-<div class="instructions-panel">
-    <div class="instructions-header">IMPORTANT INSTRUCTIONS</div>
-
-    <div class="instructions-body">
-        <div class="instruction-item">
-            <h6>1. Editing Your Application</h6>
-            <p>You can update your profile and application details anytime before the closing date to correct any mistakes or missing information.</p>
-            <p class="urdu">امیدوار اپنی درخواست میں کسی بھی غلطی یا کمی کو آخری تاریخ تک درست کر سکتے ہیں۔</p>
-        </div>
-
-        <div class="instruction-item">
-            <h6>2. Document Requirements</h6>
-            <p>All uploaded documents (CNIC, certificates, photograph) must be clear and valid. Applications with incomplete or unclear documents may be rejected.</p>
-            <p class="urdu">تمام اپلوڈ کردہ دستاویزات واضح اور درست ہونی چاہئیں۔ نامکمل یا غیر واضح دستاویزات والی درخواستیں مسترد کی جا سکتی ہیں۔</p>
-        </div>
-
-        <div class="instruction-item">
-            <h6>3. Final Data</h6>
-            <p>The information provided in your online application will be considered final once the test process begins.</p>
-            <p class="urdu">آن لائن درخواست میں فراہم کردہ معلومات کو حتمی تصور کیا جائے گا۔</p>
-        </div>
-
-        <div class="instruction-item">
-            <h6>4. Test Details</h6>
-            <p>Your test date, time, and venue will be mentioned on your Roll Number Slip inside this portal. No separate call letter will be issued.</p>
-            <p class="urdu">ٹیسٹ کی تاریخ، وقت اور مقام کا ذکر رول نمبر سلپ پر کیا جائے گا۔ امیدواروں کو کوئی علیحدہ کال لیٹر جاری نہیں کیا جائے گا۔</p>
-        </div>
-    </div>
+<!-- NEXT STEP SECTION -->
+<div class="next-step-section">
+    <div class="next-step-title">Next step</div>
+    <div class="next-step-description">{{ $nextStepText }}</div>
+    <a href="{{ $nextStepRoute }}" class="continue-btn">
+        Continue
+        <i class="fas fa-arrow-right"></i>
+    </a>
 </div>
 
 @endsection

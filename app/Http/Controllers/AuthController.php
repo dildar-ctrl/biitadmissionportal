@@ -1,8 +1,8 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SignupRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +10,7 @@ use App\Models\CandidateLogin;
 use App\Models\AdminUser;
 use App\Models\Candidate;
 use App\Models\Application;
+use App\Models\AdmissionSchedule;
 
 class AuthController extends Controller
 {
@@ -72,16 +73,42 @@ class AuthController extends Controller
             // started applying. New candidates (no applications yet) still
             // land on the normal dashboard as before.
             $candidateProfile = Candidate::where('candidate_login_id', $candidate->id)->first();
-            $hasApplied = $candidateProfile
-                ? Application::where('candidate_id', $candidateProfile->id)->exists()
-                : false;
 
-            if ($hasApplied) {
-                return redirect()->route('apply.status')->with('success', 'Welcome back, ' . $candidate->fname . '!');
-            }
+           $candidateProfile = Candidate::where('candidate_login_id', $candidate->id)->first();
+$currentSchedule = AdmissionSchedule::current();
 
-            return redirect()->route('dashboard')->with('success', 'Welcome back, ' . $candidate->fname . '!');
+if ($candidateProfile) {
+    $latestApplication = Application::where('candidate_id', $candidateProfile->id)
+        ->latest('id')
+        ->first();
+
+    if ($latestApplication) {
+        $firstChoice = $latestApplication->choices()->with('program')->first();
+        $applicationSessionId = optional($firstChoice)->program->session_id ?? null;
+
+        // Application belongs to the currently open session → normal status page
+        if ($currentSchedule && $applicationSessionId == $currentSchedule->sessionid) {
+            return redirect()->route('apply.status')->with('success', 'Welcome back, ' . $candidate->fname . '!');
         }
+
+        // No admission window open right now
+        if (!$currentSchedule) {
+            return redirect()->route('admissions.closed')->with('info', 'Admissions are currently closed.');
+        }
+
+        // A new session is open, but this application was for an old/closed session
+        return redirect()->route('apply.index')->with('info', 'A new admission session is open. Please select your program(s).');
+    }
+
+    // Candidate never applied yet
+    if (!$currentSchedule) {
+        return redirect()->route('admissions.closed')->with('info', 'Admissions are currently closed.');
+    }
+}
+
+return redirect()->route('dashboard')->with('success', 'Welcome back, ' . $candidate->fname . '!');
+            return redirect()->route('dashboard')->with('success', 'Welcome back, ' . $candidate->fname . '!');
+            }
 
         // 3. Neither table had this email
         return redirect()->route('login')->with('error', 'Account not found.');
@@ -94,24 +121,19 @@ class AuthController extends Controller
         return view('signup');
     }
 
-    public function signup(Request $request)
+    public function signup(SignupRequest $request)
     {
-        $request->validate([
-            'fname' => 'required|string|max:100',
-            'lname' => 'required|string|max:100',
-            'cnic' => 'required|string|max:20|unique:candidatelogin,cnic',
-            'mobile_no' => 'required|string|max:20',
-            'email' => 'required|email|max:150|unique:candidatelogin,email',
-            'password' => 'required|string|min:6|confirmed', // expects password_confirmation field
-        ]);
+        // Validation rules, messages and input cleanup (CNIC dashes,
+        // mobile format, lowercase email) live in SignupRequest.
+        $data = $request->validated();
 
         CandidateLogin::create([
-            'fname' => $request->fname,
-            'lname' => $request->lname,
-            'cnic' => $request->cnic,
-            'mobile_no' => $request->mobile_no,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'fname' => $data['fname'],
+            'lname' => $data['lname'],
+            'cnic' => $data['cnic'],
+            'mobile_no' => $data['mobile_no'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
         ]);
 
         return redirect()->route('login')->with('success', 'Account created successfully! Please log in.');
@@ -134,4 +156,5 @@ class AuthController extends Controller
 
         return redirect('/login')->with('success', 'You have been logged out successfully!');
     }
+    
 }

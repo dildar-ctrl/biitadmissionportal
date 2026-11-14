@@ -1,8 +1,9 @@
-@extends('admin.layout')
+@extends('layouts.app')
 
 @section('title', 'Apply & Submit')
-
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/biit-responsive.css') }}">
+
 <style>
     .search-box {
         position: relative;
@@ -42,7 +43,7 @@
     }
 
     .session-group-header {
-        background: linear-gradient(135deg, #3e4095, #06b6d4);
+        background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
         color: #fff;
         padding: 16px 22px;
         display: flex;
@@ -78,12 +79,17 @@
     }
 
     .program-row {
-        padding: 18px 22px;
+        padding: 16px 22px;
         border-bottom: 1px solid #f3f4f8;
         display: flex;
         align-items: center;
         flex-wrap: wrap;
         gap: 14px;
+        transition: background-color 0.15s ease;
+    }
+
+    .program-row:hover {
+        background-color: #fafbfc;
     }
 
     .program-row:last-child {
@@ -96,19 +102,9 @@
     }
 
     .program-row .info strong {
-        display: block;
         font-size: 0.95rem;
         color: var(--text-dark);
-        margin-bottom: 6px;
-    }
-
-    .program-row .instruction-note {
-        font-size: 0.8rem;
-        color: #c0392b;
         font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
 
     .last-date-pill {
@@ -134,7 +130,7 @@
     .status-badge.rejected { background-color: rgba(239,68,68,0.12); color: #ef4444; }
 
     .apply-now-btn {
-        background: linear-gradient(135deg, #3e4095, #06b6d4);
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
         color: #fff;
         border: none;
         padding: 10px 22px;
@@ -147,6 +143,101 @@
 
     .apply-now-btn:hover {
         opacity: 0.92;
+    }
+
+    .apply-now-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* ---------- Checkbox program selection ---------- */
+    .program-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+        min-width: 220px;
+        cursor: pointer;
+    }
+
+    .program-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        width: 22px;
+        height: 22px;
+        border: 2px solid #d1d5db;
+        border-radius: 7px;
+        background-color: #fff;
+        cursor: pointer;
+        flex-shrink: 0;
+        position: relative;
+        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .program-checkbox:hover {
+        border-color: var(--primary);
+    }
+
+    .program-checkbox:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(12, 115, 71, 0.18);
+    }
+
+    .program-checkbox:checked {
+        background-color: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .program-checkbox:checked::after {
+        content: '';
+        position: absolute;
+        left: 6px;
+        top: 2px;
+        width: 6px;
+        height: 11px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .priority-badge {
+      background: linear-gradient(135deg, #279a4f 0%, #17753b 100%);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    .program-row:has(.program-checkbox:checked) {
+        background-color: var(--bg-soft);
+        box-shadow: inset 3px 0 0 var(--primary);
+    }
+
+    .selection-bar {
+        position: sticky;
+        bottom: 16px;
+        background-color: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 22px;
+        margin-top: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .selection-count {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 600;
     }
 
     .view-link {
@@ -184,7 +275,7 @@
     }
 
     .applications-table thead th {
-        background: linear-gradient(135deg, #3e4095, #06b6d4);
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
         color: #fff;
         text-align: left;
         padding: 12px 18px;
@@ -238,70 +329,83 @@
 
 <div class="stepper-title">Admissions Open For</div>
 
-@if(!$candidate)
-<div class="card-panel text-center" style="padding: 40px;">
-    <p style="color: var(--text-muted);">Please complete your Profile before applying to a program.</p>
-    <a href="{{ route('profile.edit') }}" class="apply-now-btn" style="text-decoration:none; display:inline-block;">Go to Profile</a>
-</div>
-@else
-
 <div class="search-box">
     <i class="fas fa-search"></i>
     <input type="text" id="programSearch" placeholder="Search programs..." onkeyup="filterPrograms()">
 </div>
 
-<div id="programGroups">
-    @forelse($programs->groupBy('session') as $session => $programsInSession)
-        @php
-            // Already-applied programs float to the top of the list within
-            // this session, so the candidate doesn't have to hunt for them.
-            $programsInSession = $programsInSession->sortByDesc(function ($program) use ($myApplications) {
-                return $myApplications->has($program->id) ? 1 : 0;
-            });
-        @endphp
-        <div class="session-group">
-            <div class="session-group-header" onclick="toggleGroup(this)">
-                <div class="icon-box"><i class="fas fa-graduation-cap"></i></div>
-                <div class="title">{{ $session }}</div>
-                <i class="fas fa-chevron-down chevron"></i>
+@if($alreadyapplied && $myApplications->isNotEmpty())
+<div class="session-group" style="margin-bottom: 24px;">
+    <div class="session-group-header" style="cursor: default;">
+        <div class="icon-box"><i class="fas fa-check"></i></div>
+        <div class="title">Your Selected Programs</div>
+    </div>
+    <div class="session-group-body">
+        @foreach($myApplications as $choice)
+            <div class="program-row">
+                <div class="info">
+                    <strong>
+                        <span class="priority-badge">{{ $choice->priority }}{{ $choice->priority == 1 ? 'st' : ($choice->priority == 2 ? 'nd' : 'rd') }} choice</span>
+                        {{ $choice->program->name }}
+                    </strong>
+                </div>
+                <a href="{{ route('apply.status') }}" class="view-link">
+                    <i class="fas fa-eye"></i> View
+                </a>
             </div>
-
-            <div class="session-group-body">
-                @foreach($programsInSession as $program)
-                    @php $existing = $myApplications->get($program->id); @endphp
-
-                    <div class="program-row" data-title="{{ strtolower($program->title) }}">
-                        <div class="info">
-                            <strong>{{ $program->title }}</strong>
-                            @if(!$existing)
-                            <div class="instruction-note">
-                                <i class="fas fa-clock"></i>
-                                Please review your profile and documents carefully before proceeding with your application.
-                            </div>
-                            @endif
-                        </div>
-
-                        @if($existing)
-                            <a href="{{ route('apply.status') }}" class="view-link">
-                                <i class="fas fa-eye"></i> View
-                            </a>
-                        @else
-                            <form method="POST" action="{{ route('apply.store') }}">
-                                @csrf
-                                <input type="hidden" name="program_id" value="{{ $program->id }}">
-                                <button type="submit" class="apply-now-btn">Apply Now <i class="fas fa-arrow-right ms-1"></i></button>
-                            </form>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    @empty
-        <p class="text-muted" style="font-size: 0.85rem;">No programs are currently open for admission.</p>
-    @endforelse
-
-    <p id="noResultsMsg" class="text-muted" style="font-size: 0.85rem; display:none;">No matching programs found.</p>
+        @endforeach
+    </div>
 </div>
+@else
+
+<form method="POST" action="{{ route('apply.store') }}" id="programSelectForm">
+    @csrf
+
+    <div id="programGroups">
+        @forelse($groupedPrograms as $sessionId => $programsInSession)
+            <div class="session-group">
+                <div class="session-group-header" onclick="toggleGroup(this)">
+                    <div class="icon-box"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="title">{{ $sessions[$sessionId] ?? 'Session' }}</div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+
+                <div class="session-group-body">
+                    @foreach($programsInSession as $program)
+                        <div class="program-row" data-title="{{ strtolower($program->name) }}">
+                            <label class="program-checkbox-label" for="program_{{ $program->id }}">
+                                <input
+                                    type="checkbox"
+                                    id="program_{{ $program->id }}"
+                                    class="program-checkbox"
+                                    value="{{ $program->id }}"
+                                    data-name="{{ $program->name }}"
+                                    onchange="onProgramToggle(this)"
+                                    @if(in_array($program->id, $sessionSelectedIds ?? [])) data-preselected="1" @endif
+                                >
+                                <div class="info">
+                                    <strong>{{ $program->name }}</strong>
+                                </div>
+                            </label>
+                            <span class="priority-badge" id="badge_{{ $program->id }}" style="display:none;"></span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @empty
+            <p class="text-muted" style="font-size: 0.85rem;">No programs are currently open for admission.</p>
+        @endforelse
+
+        <p id="noResultsMsg" class="text-muted" style="font-size: 0.85rem; display:none;">No matching programs found.</p>
+    </div>
+
+    <div class="selection-bar">
+        <div class="selection-count"><span id="selectedCount">0</span>/3 programs selected — the order you tick them sets your 1st, 2nd and 3rd choice.</div>
+        <button type="submit" class="apply-now-btn" id="submitSelectionBtn" disabled>
+            Submit Selection <i class="fas fa-arrow-right ms-1"></i>
+        </button>
+    </div>
+</form>
 
 @endif
 
@@ -320,9 +424,7 @@
             if (matches) visibleCount++;
         });
 
-        // hide a session group entirely if none of its rows match
         document.querySelectorAll('.session-group').forEach(function (group) {
-            const visibleRows = group.querySelectorAll('.program-row[style*="flex"], .program-row:not([style])');
             const anyVisible = Array.from(group.querySelectorAll('.program-row')).some(r => r.style.display !== 'none');
             group.style.display = anyVisible ? 'block' : 'none';
         });
@@ -334,6 +436,87 @@
         header.classList.toggle('collapsed');
         const body = header.nextElementSibling;
         body.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
+    }
+
+    // ---------- Program selection (max 3, order picked = priority) ----------
+    const MAX_PROGRAM_CHOICES = 3;
+    // Restore selection order if candidate already picked programs earlier
+    // in this session (e.g. navigated back from Profile without submitting).
+    let selectedProgramIds = @json(array_values($sessionSelectedIds ?? []));
+
+    function renderBadges() {
+        document.querySelectorAll('.priority-badge[id^="badge_"]').forEach(function (badge) {
+            badge.style.display = 'none';
+            badge.textContent = '';
+        });
+
+        const labels = ['1ST CHOICE', '2ND CHOICE', '3RD CHOICE'];
+        selectedProgramIds.forEach(function (id, index) {
+            const badge = document.getElementById('badge_' + id);
+            if (badge) {
+                badge.textContent = labels[index];
+                badge.style.display = 'inline-block';
+            }
+        });
+
+        document.getElementById('selectedCount').textContent = selectedProgramIds.length;
+
+        const submitBtn = document.getElementById('submitSelectionBtn');
+        if (submitBtn) {
+            submitBtn.disabled = selectedProgramIds.length === 0;
+        }
+    }
+
+    function onProgramToggle(checkbox) {
+        const id = checkbox.value;
+
+        if (checkbox.checked) {
+            if (selectedProgramIds.length >= MAX_PROGRAM_CHOICES) {
+                checkbox.checked = false;
+                alert('You can select a maximum of ' + MAX_PROGRAM_CHOICES + ' programs.');
+                return;
+            }
+            selectedProgramIds.push(id);
+        } else {
+            selectedProgramIds = selectedProgramIds.filter(function (existingId) {
+                return existingId !== id;
+            });
+        }
+
+        renderBadges();
+    }
+
+    const programSelectForm = document.getElementById('programSelectForm');
+    if (programSelectForm) {
+        programSelectForm.addEventListener('submit', function () {
+            programSelectForm.querySelectorAll('input[name="program_ids[]"]').forEach(function (el) {
+                el.remove();
+            });
+
+            selectedProgramIds.forEach(function (id) {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'program_ids[]';
+                hidden.value = id;
+                programSelectForm.appendChild(hidden);
+            });
+        });
+    }
+
+    // On load, tick the checkboxes for any programs already saved to session
+    // (selectedProgramIds is seeded from the backend above) and show badges.
+    // Only runs when the selection form is actually on the page (i.e. not
+    // in the "already applied" read-only view).
+    if (programSelectForm) {
+        selectedProgramIds = selectedProgramIds.map(String).filter(function (id) {
+            const checkbox = document.getElementById('program_' + id);
+            if (checkbox) {
+                checkbox.checked = true;
+                return true;
+            }
+            return false; // program no longer open/available - drop silently
+        });
+        renderBadges();
     }
 </script>
 @endpush

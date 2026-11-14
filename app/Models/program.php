@@ -25,8 +25,5 @@ class Program extends Model
         return $this->hasMany(ProgramPattern::class, 'program_id');
     }
 
-    public function tests()
-    {
-        return $this->hasMany(Test::class, 'program_id');
-    }
+    
 }

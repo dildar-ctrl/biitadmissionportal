@@ -11,15 +11,17 @@ class AdminCandidateController extends Controller
     public function index(Request $request)
     {
         $search = $request->query('search');
+        $sessionId = $request->query('session_id');
 
-        // Base list is candidate_login — every account that ever signed up,
-        // whether or not they went on to complete their profile.
         $candidates = CandidateLogin::with([
-                'candidate.education.majorSubjects',
-                'candidate.education.marksType',
-                'candidate.education.boardUniversity',
+                'candidate.education',
                 'candidate.documents.documentType',
             ])
+            ->when($sessionId, function ($query) use ($sessionId) {
+                $query->whereHas('candidate.applications.choices.program', function ($q) use ($sessionId) {
+                    $q->where('session_id', $sessionId);
+                });
+            })
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('fname', 'like', "%{$search}%")
@@ -33,6 +35,6 @@ class AdminCandidateController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.candidates', compact('candidates', 'search'));
+        return view('admin.candidates', compact('candidates', 'search', 'sessionId'));
     }
 }

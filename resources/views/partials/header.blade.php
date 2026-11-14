@@ -1,4 +1,4 @@
-{{--
+<!-- {{--
     Shared Header — include on every module with: @include('partials.header')
     Works for both guards: admin (auth:admin) and candidate (auth:web)
 --}}
@@ -222,4 +222,4 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
-</script>
+</script> -->

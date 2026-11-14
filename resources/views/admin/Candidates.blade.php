@@ -1,8 +1,11 @@
-@extends('admin.layout')
+@extends('layouts.admin')
 
 @section('title', 'Candidates')
 
+
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/biit-responsive.css') }}">
+
 <style>
     .search-box {
         position: relative;
@@ -36,7 +39,15 @@
         background-color: #fff;
         border-radius: 14px;
         border: 1px solid var(--border);
-        overflow: hidden;
+        max-height: 620px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .candidates-table-wrapper thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
     .candidates-table {
@@ -143,6 +154,82 @@
         text-decoration: none;
         font-size: 0.8rem;
     }
+
+    /* ===== INFINITE SCROLL LOADER ===== */
+    .infinite-scroll-loader {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 22px;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        visibility: hidden;
+    }
+
+    .infinite-scroll-loader.is-active {
+        visibility: visible;
+    }
+
+    .loader-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: infinite-scroll-spin 0.7s linear infinite;
+    }
+
+    @keyframes infinite-scroll-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .infinite-scroll-end {
+        display: none;
+        text-align: center;
+        padding: 18px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .infinite-scroll-end.is-active {
+        display: block;
+    }
+        /* ---------- Responsive: table text ek line mein + bara font ---------- */
+    @media (max-width: 991.98px) {
+        html body .candidates-table-wrapper {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        html body .candidates-table {
+            width: max-content !important;
+            min-width: 100% !important;
+        }
+        html body .candidates-table thead th,
+        html body .candidates-table tbody td {
+            white-space: nowrap !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+            padding: 14px 18px !important;
+        }
+        html body .candidates-table thead th {
+            font-size: 0.85rem !important;
+        }
+        html body .candidates-table tbody td {
+            font-size: 1rem !important;
+        }
+        html body .candidates-table .status-badge {
+            font-size: 0.85rem !important;
+            padding: 6px 14px !important;
+        }
+        html body .candidates-table .action-btn {
+            font-size: 0.85rem !important;
+            padding: 8px 14px !important;
+            white-space: nowrap;
+        }
+    }
+    
 </style>
 @endpush
 
@@ -158,7 +245,7 @@
     <input type="text" name="search" value="{{ $search }}" placeholder="Search by name, CNIC, email, or mobile...">
 </form>
 
-<div class="candidates-table-wrapper">
+<div class="candidates-table-wrapper" id="candidatesTableWrapper">
     @if($candidates->count())
     <table class="candidates-table">
         <thead>
@@ -171,7 +258,7 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="candidatesTableBody">
             @foreach($candidates as $login)
             <tr>
                 <td>{{ $login->fname }} {{ $login->lname }}</td>
@@ -195,13 +282,25 @@
         </tbody>
     </table>
 
-    <div style="padding: 16px 22px;">
-        {{ $candidates->links() }}
+    {{-- Infinite scroll: sentinel element holds the next page URL. Controller must
+         preserve the current query string on the paginator (->withQueryString() or
+         ->appends(request()->query())) so the "search" filter carries over into
+         subsequent pages fetched here. --}}
+    <div id="candidatesInfiniteLoader"
+         class="infinite-scroll-loader"
+         data-next-url="{{ $candidates->nextPageUrl() }}">
+        <div class="loader-spinner"></div>
+        <span>Loading more candidates...</span>
     </div>
+    <div id="candidatesInfiniteEnd" class="infinite-scroll-end">All candidates loaded.</div>
+
     @else
     <p class="empty-note">No candidates found{{ $search ? ' matching "'.$search.'"' : '' }}.</p>
     @endif
 </div>
+
+{{-- Dynamically-loaded candidate modals fetched via infinite scroll get appended here --}}
+<div id="dynamicModalsContainer"></div>
 
 {{-- ===================== Candidate Detail Modals ===================== --}}
 @foreach($candidates as $login)
@@ -246,7 +345,6 @@
                     <div class="review-grid">
                         <div><span class="review-label">Name</span>{{ $login->candidate->father_name ?? '—' }}</div>
                         <div><span class="review-label">CNIC</span>{{ $login->candidate->father_cnic ?? '—' }}</div>
-                        <div><span class="review-label">Occupation</span>{{ $login->candidate->father_occupation ?? '—' }}</div>
                         <div><span class="review-label">Mobile No</span>{{ $login->candidate->father_mobile_no ?? '—' }}</div>
                     </div>
                 </div>
@@ -257,9 +355,9 @@
                     <div class="edu-review-card">
                         <strong>{{ $edu->degree }}</strong>
                         <div class="review-grid">
-                            <div><span class="review-label">Board / University</span>{{ $edu->boardUniversity->title ?? '—' }}</div>
-                            <div><span class="review-label">Major Subjects</span>{{ $edu->majorSubjects->pluck('title')->join(', ') ?: '—' }}</div>
-                            <div><span class="review-label">Marks</span>{{ $edu->obtained_marks }} / {{ $edu->total_marks }} ({{ $edu->marksType->marks_type ?? '' }})</div>
+                            <div><span class="review-label">Board / University</span>{{ $edu->boardname ?? '—' }}</div>
+                            <div><span class="review-label">Major Subjects</span>{{ $edu->majorsubjects ?: '—' }}</div>
+                            <div><span class="review-label">Marks</span>{{ $edu->obtained_marks }} / {{ $edu->total_marks }} ({{ $edu->percentage ?? '—' }}%, {{ $edu->division ?? '—' }})</div>
                         </div>
                     </div>
                     @empty
@@ -287,5 +385,90 @@
     </div>
 </div>
 @endforeach
+
+<script>
+    /* ===================== Infinite scroll for Candidates table ===================== */
+    document.addEventListener("DOMContentLoaded", function () {
+        var loader = document.getElementById('candidatesInfiniteLoader');
+        var endNote = document.getElementById('candidatesInfiniteEnd');
+        var tbody = document.getElementById('candidatesTableBody');
+        var modalsContainer = document.getElementById('dynamicModalsContainer');
+
+        if (!loader || !tbody) return;
+
+        var isLoading = false;
+
+        function finishNoMorePages() {
+            loader.dataset.nextUrl = '';
+            loader.classList.remove('is-active');
+            if (endNote) endNote.classList.add('is-active');
+            observer.unobserve(loader);
+        }
+
+        function loadNextPage() {
+            var nextUrl = loader.dataset.nextUrl;
+            if (!nextUrl || nextUrl === 'null' || nextUrl === '' || isLoading) return;
+
+            isLoading = true;
+            loader.classList.add('is-active');
+
+            fetch(nextUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+            .then(function (res) { return res.text(); })
+            .then(function (html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+
+                var newTbody = doc.getElementById('candidatesTableBody');
+                if (newTbody) {
+                    tbody.insertAdjacentHTML('beforeend', newTbody.innerHTML);
+                }
+
+                if (modalsContainer) {
+                    var newModals = doc.querySelectorAll('[id^="candidateModal"]');
+                    newModals.forEach(function (modalEl) {
+                        if (!document.getElementById(modalEl.id)) {
+                            modalsContainer.insertAdjacentHTML('beforeend', modalEl.outerHTML);
+                        }
+                    });
+                }
+
+                var newLoader = doc.getElementById('candidatesInfiniteLoader');
+                var newNextUrl = newLoader ? newLoader.dataset.nextUrl : '';
+
+                if (newNextUrl && newNextUrl !== 'null' && newNextUrl !== '') {
+                    loader.dataset.nextUrl = newNextUrl;
+                } else {
+                    finishNoMorePages();
+                }
+
+                isLoading = false;
+                loader.classList.remove('is-active');
+            })
+            .catch(function () {
+                isLoading = false;
+                loader.classList.remove('is-active');
+            });
+        }
+
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) loadNextPage();
+            });
+        }, {
+            root: document.getElementById('candidatesTableWrapper'),
+            rootMargin: '150px',
+            threshold: 0
+        });
+
+        if (loader.dataset.nextUrl && loader.dataset.nextUrl !== '') {
+            observer.observe(loader);
+        } else if (endNote) {
+            endNote.classList.add('is-active');
+        }
+    });
+</script>
 
 @endsection
