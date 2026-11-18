@@ -2,13 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\admin\AdminDashboardController;
 use App\Http\Controllers\Candidate\CandidateProfileController;
 use App\Http\Controllers\Candidate\DocumentController;
 use App\Http\Controllers\Candidate\ApplyController;
 use App\Http\Controllers\Candidate\CandidateDashboardController;
-use App\Http\Controllers\Admin\AdminApplicationController;
-use App\Http\Controllers\Admin\AdminCandidateController;
+use App\Http\Controllers\admin\AdminApplicationController;
+use App\Http\Controllers\admin\AdminCandidateController;
 use App\Http\Controllers\UndertakingsController;
 use App\Http\Controllers\ForgotPasswordController;
 
