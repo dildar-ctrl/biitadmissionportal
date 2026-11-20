@@ -108,7 +108,7 @@ class UndertakingsController extends Controller
 
     $candidate->load('education', 'documents');
 
-    return view('candidate.ProfileReview', [
+    return view('candidate.profile-review', [
         'candidate' => $candidate,
         'education' => $candidate->education,
         'documents' => $candidate->documents,
@@ -135,7 +135,7 @@ class UndertakingsController extends Controller
             return redirect()->route('apply.index')->with('error', 'Please select your programs first.');
         }
 
-        return view('candidate.Undertakings', [
+        return view('candidate.undertakings', [
             'application_no' => null, // not generated yet - only exists after final submit
             'candidate' => $candidate,
             'programs' => $programs,

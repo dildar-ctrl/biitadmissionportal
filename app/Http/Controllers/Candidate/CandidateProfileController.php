@@ -185,11 +185,6 @@ class CandidateProfileController extends Controller
     // Step 4: View Profile (read-only)
     public function view()
     {
-        $candidateLoginId = Auth::guard('web')->id();
-        $candidate = Candidate::with('education')
-            ->where('candidate_login_id', $candidateLoginId)
-            ->first();
-
-        return view('candidate.profile-view', compact('candidate'));
+        return redirect()->route('profile.review');
     }
 }
