@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <meta name="description" content="Barani Institute of Information Technology — Official Online Admission Portal" />
     <title>BIIT Admission Portal</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
